@@ -1,0 +1,18 @@
+/* Vim mode visual indicators */
+
+.vim-mode-normal {
+  caret-color: transparent;
+}
+
+.vim-mode-normal .ProseMirror-cursor {
+  border-left: none;
+}
+
+.vim-mode-insert {
+  caret-color: auto;
+}
+
+.vim-mode-visual .ProseMirror-selectedtext,
+.vim-mode-visual-line .ProseMirror-selectedtext {
+  background: rgba(59, 130, 246, 0.3);
+}
