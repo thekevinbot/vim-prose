@@ -15,6 +15,7 @@ export interface VimState {
   visualAnchor: number | null
   visualHead: number | null
   register: Register
+  goalColumn: number | null
 }
 
 export interface VimEditorCommands {
@@ -33,5 +34,6 @@ export function defaultVimState(): VimState {
     visualAnchor: null,
     visualHead: null,
     register: { text: '', linewise: false },
+    goalColumn: null,
   }
 }

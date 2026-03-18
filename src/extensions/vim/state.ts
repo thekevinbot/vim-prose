@@ -1,5 +1,5 @@
 import { Plugin, PluginKey, EditorState } from 'prosemirror-state'
-import { Decoration, DecorationSet } from 'prosemirror-view'
+import { Decoration, DecorationSet, EditorView } from 'prosemirror-view'
 import { VimState, VimEditorCommands, defaultVimState } from './types'
 import { handleKeyDown } from './keyHandler'
 
@@ -21,6 +21,28 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
     },
 
     props: {
+      handleDOMEvents: {
+        mouseup: (view: EditorView) => {
+          setTimeout(() => {
+            const { from, to } = view.state.selection
+            if (from !== to && vimState.mode === 'normal') {
+              // Native selection in normal mode → enter visual mode
+              vimState.mode = 'visual'
+              vimState.visualAnchor = from
+              vimState.visualHead = to > from ? to - 1 : from
+              view.dispatch(view.state.tr)
+            } else if (from === to && (vimState.mode === 'visual' || vimState.mode === 'visual-line')) {
+              // Click (empty selection) in visual mode → exit to normal
+              vimState.mode = 'normal'
+              vimState.visualAnchor = null
+              vimState.visualHead = null
+              view.dispatch(view.state.tr)
+            }
+          }, 0)
+          return false
+        },
+      },
+
       handleKeyDown(view: any, event: any) {
         return handleKeyDown(view, event, vimState, commands)
       },

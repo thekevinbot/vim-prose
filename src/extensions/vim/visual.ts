@@ -48,6 +48,7 @@ export function updateVisualSelection(
     }
   }
 
+  tr.scrollIntoView()
   return tr
 }
 

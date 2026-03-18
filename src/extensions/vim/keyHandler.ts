@@ -48,6 +48,7 @@ function clearPendingState(vimState: VimState) {
   vimState.findPending = false
   vimState.findMotion = null
   vimState.ggPending = false
+  vimState.goalColumn = null
 }
 
 function getEffectiveCount(vimState: VimState): number {
@@ -87,6 +88,7 @@ function moveCursor(state: EditorState, pos: number): Transaction {
       // leave selection unchanged
     }
   }
+  tr.scrollIntoView()
   return tr
 }
 
@@ -124,6 +126,7 @@ function handleOperatorMotion(
   }
 
   clearPendingState(vimState)
+  tr.scrollIntoView()
   return tr
 }
 
@@ -135,7 +138,8 @@ function resolveMotionKey(
   pos: number,
   key: string,
   count: number,
-  ctrlKey: boolean
+  ctrlKey: boolean,
+  goalColumn?: number
 ): number | null {
   if (ctrlKey) {
     switch (key) {
@@ -150,8 +154,20 @@ function resolveMotionKey(
   switch (key) {
     case 'h': return applyMotionNTimes(state, pos, count, motionLeft)
     case 'l': return applyMotionNTimes(state, pos, count, motionRight)
-    case 'j': return applyMotionNTimes(state, pos, count, motionDown)
-    case 'k': return applyMotionNTimes(state, pos, count, motionUp)
+    case 'j': {
+      let current = pos
+      for (let i = 0; i < count; i++) {
+        current = motionDown(state, current, goalColumn)
+      }
+      return current
+    }
+    case 'k': {
+      let current = pos
+      for (let i = 0; i < count; i++) {
+        current = motionUp(state, current, goalColumn)
+      }
+      return current
+    }
     case '0': return motionLineStart(state, pos)
     case '^': return motionFirstNonBlank(state)
     case '$': return motionLineEnd(state, pos)
@@ -184,8 +200,9 @@ export function handleKeyDown(
     if (key === 'Escape' || (ctrlKey && key === 'c')) {
       vimState.mode = 'normal'
       clearPendingState(vimState)
-      // Move cursor one left (vim behavior on leaving insert)
-      const newPos = motionLeft(state, pos)
+      // Move cursor one left (vim behavior) but don't cross line boundary
+      const lineS = lineStartAt(state, pos)
+      const newPos = pos > lineS ? pos - 1 : pos
       view.dispatch(moveCursor(state, newPos))
       return true
     }
@@ -430,7 +447,15 @@ export function handleKeyDown(
         vimState.mode = 'normal'
         vimState.visualAnchor = null
         vimState.visualHead = null
-        view.dispatch(moveCursor(state, state.selection.from))
+        // Position cursor at start of yanked range, resolving to text position for linewise
+        let cursorPos = range ? range.from : pos
+        if (range?.linewise && range.from < state.doc.content.size) {
+          try {
+            const $p = state.doc.resolve(range.from + 1)
+            cursorPos = $p.start($p.depth)
+          } catch { /* keep cursorPos */ }
+        }
+        view.dispatch(moveCursor(state, cursorPos))
         clearPendingState(vimState)
         return true
       }
@@ -443,6 +468,7 @@ export function handleKeyDown(
           vimState.visualAnchor = null
           vimState.visualHead = null
           clearPendingState(vimState)
+          tr.scrollIntoView()
           view.dispatch(tr)
         }
         return true
@@ -454,19 +480,30 @@ export function handleKeyDown(
           vimState.visualAnchor = null
           vimState.visualHead = null
           clearPendingState(vimState)
+          tr.scrollIntoView()
           view.dispatch(tr)
         }
         return true
       }
       default: {
-        // Try as motion
-        const targetPos = resolveMotionKey(state, pos, key, count, false)
+        // Try as motion — prepare goalColumn for j/k
+        if (key === 'j' || key === 'k') {
+          if (vimState.goalColumn === null) {
+            try {
+              const $pos = state.doc.resolve(pos)
+              vimState.goalColumn = pos - $pos.start($pos.depth)
+            } catch { vimState.goalColumn = 0 }
+          }
+        }
+        const savedGoal = (key === 'j' || key === 'k') ? vimState.goalColumn : null
+        const targetPos = resolveMotionKey(state, pos, key, count, false, vimState.goalColumn ?? undefined)
         if (targetPos !== null) {
           const tr = state.tr
           updateVisualSelection(state, tr, vimState, targetPos)
           vimState.visualHead = targetPos
           view.dispatch(tr)
           clearPendingState(vimState)
+          vimState.goalColumn = savedGoal
           return true
         }
 
@@ -497,6 +534,7 @@ export function handleKeyDown(
         case 'd': {
           const tr = deleteLines(state, pos, count, vimState)
           clearPendingState(vimState)
+          tr.scrollIntoView()
           view.dispatch(tr)
           return true
         }
@@ -508,14 +546,23 @@ export function handleKeyDown(
         case 'c': {
           const tr = changeLines(state, pos, count, vimState)
           clearPendingState(vimState)
+          tr.scrollIntoView()
           view.dispatch(tr)
           return true
         }
       }
     }
 
-    // Operator + motion
-    const targetPos = resolveMotionKey(state, pos, key, count, false)
+    // Operator + motion — prepare goalColumn for j/k
+    if (key === 'j' || key === 'k') {
+      if (vimState.goalColumn === null) {
+        try {
+          const $pos = state.doc.resolve(pos)
+          vimState.goalColumn = pos - $pos.start($pos.depth)
+        } catch { vimState.goalColumn = 0 }
+      }
+    }
+    const targetPos = resolveMotionKey(state, pos, key, count, false, vimState.goalColumn ?? undefined)
     if (targetPos !== null) {
       let from = pos
       let to = targetPos
@@ -702,10 +749,25 @@ export function handleKeyDown(
     }
 
     // Motions
+    case 'j':
+    case 'k': {
+      if (vimState.goalColumn === null) {
+        try {
+          const $pos = state.doc.resolve(pos)
+          vimState.goalColumn = pos - $pos.start($pos.depth)
+        } catch { vimState.goalColumn = 0 }
+      }
+      const savedGoal = vimState.goalColumn
+      const targetPos = resolveMotionKey(state, pos, key, count, false, savedGoal)
+      if (targetPos !== null) {
+        view.dispatch(moveCursor(state, targetPos))
+      }
+      clearPendingState(vimState)
+      vimState.goalColumn = savedGoal
+      return true
+    }
     case 'h':
     case 'l':
-    case 'j':
-    case 'k':
     case '^':
     case '$':
     case 'w':

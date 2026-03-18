@@ -52,12 +52,12 @@ export function motionRight(state: EditorState, pos: number): number {
 /**
  * Move down by one line, trying to preserve column offset.
  */
-export function motionDown(state: EditorState, pos: number): number {
+export function motionDown(state: EditorState, pos: number, goalColumn?: number): number {
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) return pos
 
   const currentLineStart = $pos.start($pos.depth)
-  const currentOffset = pos - currentLineStart
+  const currentOffset = goalColumn !== undefined ? goalColumn : (pos - currentLineStart)
 
   // Find the next paragraph node
   const currentNodeEnd = $pos.after($pos.depth)
@@ -80,12 +80,12 @@ export function motionDown(state: EditorState, pos: number): number {
 /**
  * Move up by one line, trying to preserve column offset.
  */
-export function motionUp(state: EditorState, pos: number): number {
+export function motionUp(state: EditorState, pos: number, goalColumn?: number): number {
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) return pos
 
   const currentLineStart = $pos.start($pos.depth)
-  const currentOffset = pos - currentLineStart
+  const currentOffset = goalColumn !== undefined ? goalColumn : (pos - currentLineStart)
 
   // Find the previous paragraph node
   const currentNodeStart = $pos.before($pos.depth)
