@@ -67,7 +67,7 @@ const state = EditorState.create({
 Import the bundled CSS for basic mode-indicator styling:
 
 ```css
-@import 'vim-prose/src/extensions/vim/vim-mode.css';
+@import 'vim-prose/style.css';
 ```
 
 ---

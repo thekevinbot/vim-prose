@@ -20,8 +20,8 @@ export const VimMode = Extension.create({
     const editor = this.editor
     return [
       createVimPlugin({
-        undo: () => editor.commands.undo(),
-        redo: () => editor.commands.redo(),
+        undo: () => (editor.commands as any).undo(),
+        redo: () => (editor.commands as any).redo(),
         indent: () => {
           try {
             return editor.commands.sinkListItem('listItem')

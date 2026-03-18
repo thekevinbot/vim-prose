@@ -1,29 +1,64 @@
 {
   "name": "vim-prose",
-  "version": "1.0.0",
-  "description": "Vim mode extension for Tiptap v3",
+  "author": "KJ Shanks",
+  "version": "0.1.0",
+  "description": "Vim keybinding extension for Tiptap v3 / ProseMirror",
+  "type": "module",
   "main": "dist/extensions/vim/index.js",
   "types": "dist/extensions/vim/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "dev": "vite demo"
+  "exports": {
+    ".": {
+      "import": "./dist/extensions/vim/index.js",
+      "types": "./dist/extensions/vim/index.d.ts"
+    },
+    "./tiptap": {
+      "import": "./dist/extensions/vim/tiptap.js",
+      "types": "./dist/extensions/vim/tiptap.d.ts"
+    },
+    "./style.css": "./dist/extensions/vim/vim-mode.css"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && cp src/extensions/vim/vim-mode.css dist/extensions/vim/vim-mode.css",
+    "typecheck": "tsc --noEmit",
+    "dev": "vite demo",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@tiptap/core": ">=3",
+    "prosemirror-model": ">=1",
+    "prosemirror-state": ">=1",
+    "prosemirror-view": ">=1"
+  },
+  "peerDependenciesMeta": {
+    "@tiptap/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
     "@tiptap/core": "^3.20.3",
     "@tiptap/pm": "^3.20.3",
+    "@tiptap/starter-kit": "^3.20.4",
     "prosemirror-model": "^1.25.4",
     "prosemirror-state": "^1.4.4",
     "prosemirror-transform": "^1.11.0",
     "prosemirror-view": "^1.41.6",
-    "typescript": "^5.9.3"
-  },
-  "devDependencies": {
-    "@tiptap/starter-kit": "^3.20.4",
+    "typescript": "^5.9.3",
     "vite": "^8.0.0"
+  },
+  "keywords": [
+    "vim",
+    "tiptap",
+    "prosemirror",
+    "editor",
+    "keybindings",
+    "modal"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kyle-Shanks/vim-prose"
   }
 }
