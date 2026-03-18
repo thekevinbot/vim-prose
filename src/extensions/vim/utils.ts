@@ -99,7 +99,17 @@ export function charAt(state: EditorState, pos: number): string {
  * and nodeEnd is the position after the node (including the node itself).
  */
 export function paragraphBounds(state: EditorState, pos: number): { from: number; to: number } {
-  const $pos = state.doc.resolve(pos)
+  let $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) {
+    // At document root (between nodes), resolve into nearest textblock
+    if (pos < state.doc.content.size) {
+      $pos = state.doc.resolve(pos + 1)
+    } else if (pos > 0) {
+      $pos = state.doc.resolve(pos - 1)
+    } else {
+      return { from: 0, to: state.doc.content.size }
+    }
+  }
   const depth = $pos.depth
   const start = $pos.before(depth)
   const end = $pos.after(depth)

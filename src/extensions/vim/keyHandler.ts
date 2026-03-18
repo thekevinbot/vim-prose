@@ -172,7 +172,10 @@ export function handleKeyDown(
   commands: VimEditorCommands
 ): boolean {
   const state = view.state
-  const pos = state.selection.$head.pos
+  // In visual modes, use the tracked visual head (not $head.pos which is the exclusive selection end)
+  const pos = (vimState.mode === 'visual' || vimState.mode === 'visual-line') && vimState.visualHead !== null
+    ? vimState.visualHead
+    : state.selection.$head.pos
   const key = event.key
   const ctrlKey = event.ctrlKey || event.metaKey
 
@@ -192,11 +195,13 @@ export function handleKeyDown(
   // ── ESC / CTRL-C (normal/visual) ──
   if (key === 'Escape' || (ctrlKey && key === 'c')) {
     if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
+      const restorePos = pos
       vimState.mode = 'normal'
       vimState.visualAnchor = null
+      vimState.visualHead = null
       clearPendingState(vimState)
-      // Collapse selection to head
-      view.dispatch(moveCursor(state, pos))
+      // Collapse selection to the visual head position
+      view.dispatch(moveCursor(state, restorePos))
       return true
     }
     clearPendingState(vimState)
@@ -205,6 +210,11 @@ export function handleKeyDown(
 
   // ── TEXT OBJECT RESOLUTION (when operator + i/a is pending) ──
   if ((vimState as any)._textObjectType) {
+    // Ignore modifier-only keys — wait for the actual character
+    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+      return true
+    }
+
     const objectType = (vimState as any)._textObjectType as 'i' | 'a'
     delete (vimState as any)._textObjectType
     vimState.findPending = false
@@ -222,6 +232,7 @@ export function handleKeyDown(
         clearPendingState(vimState)
       } else if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
         vimState.visualAnchor = result.from
+        vimState.visualHead = result.to > result.from ? result.to - 1 : result.from
         const tr = state.tr
         try {
           tr.setSelection(TextSelection.create(tr.doc, result.from, result.to))
@@ -238,6 +249,11 @@ export function handleKeyDown(
 
   // ── FIND PENDING (waiting for char after f/F/t/T) ──
   if (vimState.findPending) {
+    // Ignore modifier-only keys — wait for the actual character
+    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+      return true
+    }
+
     if (key.length !== 1) {
       clearPendingState(vimState)
       return true
@@ -277,6 +293,7 @@ export function handleKeyDown(
       } else if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
         const tr = state.tr
         updateVisualSelection(state, tr, vimState, targetPos)
+        vimState.visualHead = targetPos
         view.dispatch(tr)
       } else {
         view.dispatch(moveCursor(state, targetPos))
@@ -313,6 +330,7 @@ export function handleKeyDown(
       } else if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
         const tr = state.tr
         updateVisualSelection(state, tr, vimState, targetPos)
+        vimState.visualHead = targetPos
         view.dispatch(tr)
       } else {
         view.dispatch(moveCursor(state, targetPos))
@@ -353,6 +371,7 @@ export function handleKeyDown(
           if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
             const tr = state.tr
             updateVisualSelection(state, tr, vimState, targetPos)
+            vimState.visualHead = targetPos
             view.dispatch(tr)
           } else {
             view.dispatch(moveCursor(state, targetPos))
@@ -377,6 +396,7 @@ export function handleKeyDown(
           // Toggle off visual mode
           vimState.mode = 'normal'
           vimState.visualAnchor = null
+          vimState.visualHead = null
           view.dispatch(moveCursor(state, pos))
         } else {
           // Switch from visual-line to characterwise visual
@@ -390,6 +410,7 @@ export function handleKeyDown(
           // Toggle off visual-line mode
           vimState.mode = 'normal'
           vimState.visualAnchor = null
+          vimState.visualHead = null
           view.dispatch(moveCursor(state, pos))
         } else {
           // Switch to visual-line from characterwise
@@ -408,6 +429,7 @@ export function handleKeyDown(
         }
         vimState.mode = 'normal'
         vimState.visualAnchor = null
+        vimState.visualHead = null
         view.dispatch(moveCursor(state, state.selection.from))
         clearPendingState(vimState)
         return true
@@ -419,6 +441,7 @@ export function handleKeyDown(
           const tr = executeDelete(state, range.from, range.to, vimState, range.linewise)
           vimState.mode = 'normal'
           vimState.visualAnchor = null
+          vimState.visualHead = null
           clearPendingState(vimState)
           view.dispatch(tr)
         }
@@ -429,6 +452,7 @@ export function handleKeyDown(
         if (range) {
           const tr = executeChange(state, range.from, range.to, vimState, range.linewise)
           vimState.visualAnchor = null
+          vimState.visualHead = null
           clearPendingState(vimState)
           view.dispatch(tr)
         }
@@ -440,6 +464,7 @@ export function handleKeyDown(
         if (targetPos !== null) {
           const tr = state.tr
           updateVisualSelection(state, tr, vimState, targetPos)
+          vimState.visualHead = targetPos
           view.dispatch(tr)
           clearPendingState(vimState)
           return true
@@ -533,6 +558,7 @@ export function handleKeyDown(
     case 'i': {
       vimState.mode = 'insert'
       clearPendingState(vimState)
+      view.dispatch(state.tr) // Trigger view update for mode change
       return true
     }
     case 'I': {
@@ -560,6 +586,7 @@ export function handleKeyDown(
     case 'v': {
       vimState.mode = 'visual'
       vimState.visualAnchor = pos
+      vimState.visualHead = pos
       clearPendingState(vimState)
       // Set initial selection (single character)
       const tr = state.tr
@@ -574,6 +601,7 @@ export function handleKeyDown(
     case 'V': {
       vimState.mode = 'visual-line'
       vimState.visualAnchor = pos
+      vimState.visualHead = pos
       clearPendingState(vimState)
       const tr = state.tr
       updateVisualSelection(state, tr, vimState, pos)

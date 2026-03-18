@@ -1,18 +1,37 @@
 /* Vim mode visual indicators */
 
-.vim-mode-normal {
+/* Hide native caret in non-insert modes */
+.vim-mode-normal,
+.vim-mode-visual,
+.vim-mode-visual-line {
   caret-color: transparent;
 }
 
-.vim-mode-normal .ProseMirror-cursor {
-  border-left: none;
-}
-
+/* Show native caret in insert mode */
 .vim-mode-insert {
   caret-color: auto;
 }
 
-.vim-mode-visual .ProseMirror-selectedtext,
-.vim-mode-visual-line .ProseMirror-selectedtext {
+/* Block cursor (character under cursor in normal/visual modes) */
+.vim-block-cursor {
+  background: rgba(55, 53, 47, 0.8);
+  color: #ffffff;
+  border-radius: 1px;
+}
+
+/* Block cursor at end of line (widget) */
+.vim-block-cursor-eol {
+  background: rgba(55, 53, 47, 0.8);
+  border-radius: 1px;
+}
+
+/* Visual selection highlight */
+.vim-visual-selection {
   background: rgba(59, 130, 246, 0.3);
+}
+
+/* Suppress native selection in visual modes (we use decorations instead) */
+.vim-mode-visual ::selection,
+.vim-mode-visual-line ::selection {
+  background: transparent;
 }

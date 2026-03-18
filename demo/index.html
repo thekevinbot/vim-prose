@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vim-prose demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #f5f0e8;
+      color: #37352f;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #37352f;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: #9b9a97;
+      margin-top: 6px;
+    }
+
+    .editor-wrapper {
+      width: 100%;
+      max-width: 680px;
+      background: #fffdf9;
+      border: 1px solid #e8e3d9;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+      overflow: hidden;
+    }
+
+    #mode-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-bottom: 1px solid #e8e3d9;
+      background: #faf7f2;
+      font-size: 0.75rem;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    #mode-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.05em;
+    }
+
+    #mode-badge.normal   { background: #e6f3ec; color: #3b7a57; }
+    #mode-badge.insert   { background: #fcebd4; color: #b06e2a; }
+    #mode-badge.visual   { background: #e8dff5; color: #6b4ea0; }
+    #mode-badge.visual-line { background: #e8dff5; color: #6b4ea0; }
+
+    #mode-hint {
+      color: #b4b0a8;
+    }
+
+    .ProseMirror {
+      padding: 24px;
+      min-height: 340px;
+      outline: none;
+      font-size: 1rem;
+      line-height: 1.7;
+      color: #37352f;
+    }
+
+    .ProseMirror p { margin-bottom: 0.6em; }
+    .ProseMirror p:last-child { margin-bottom: 0; }
+
+    .ProseMirror p.is-editor-empty:first-child::before {
+      content: 'Start typing… (press i to enter insert mode)';
+      color: #c8c4bb;
+      pointer-events: none;
+      float: left;
+      height: 0;
+    }
+
+    /* Override visual selection color to match theme */
+    .vim-visual-selection {
+      background: rgba(107, 78, 160, 0.22) !important;
+    }
+
+    /* Theme the block cursor */
+    .vim-block-cursor {
+      background: rgba(55, 53, 47, 0.75) !important;
+      color: #fffdf9 !important;
+    }
+
+    .help {
+      margin-top: 24px;
+      width: 100%;
+      max-width: 680px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .help-card {
+      background: #faf7f2;
+      border: 1px solid #e8e3d9;
+      border-radius: 6px;
+      padding: 14px 16px;
+    }
+
+    .help-card h3 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9b9a97;
+      margin-bottom: 8px;
+    }
+
+    .help-card ul {
+      list-style: none;
+      font-size: 0.82rem;
+      line-height: 1.8;
+    }
+
+    .help-card kbd {
+      display: inline-block;
+      background: #fffdf9;
+      border: 1px solid #e0dbd2;
+      border-radius: 3px;
+      padding: 0 5px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.75rem;
+      color: #3b7a57;
+      min-width: 22px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>vim-prose</h1>
+    <p>Vim keybindings for Tiptap / ProseMirror</p>
+  </header>
+
+  <div class="editor-wrapper">
+    <div id="mode-bar">
+      <span id="mode-badge" class="normal">Normal</span>
+      <span id="mode-hint"></span>
+    </div>
+    <div id="editor"></div>
+  </div>
+
+  <div class="help">
+    <div class="help-card">
+      <h3>Mode Switching</h3>
+      <ul>
+        <li><kbd>i</kbd> insert before cursor</li>
+        <li><kbd>a</kbd> insert after cursor</li>
+        <li><kbd>o</kbd> open line below</li>
+        <li><kbd>Esc</kbd> back to normal</li>
+      </ul>
+    </div>
+    <div class="help-card">
+      <h3>Motions</h3>
+      <ul>
+        <li><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> navigate</li>
+        <li><kbd>w</kbd><kbd>b</kbd> word forward / back</li>
+        <li><kbd>0</kbd><kbd>$</kbd> line start / end</li>
+        <li><kbd>gg</kbd><kbd>G</kbd> doc start / end</li>
+      </ul>
+    </div>
+    <div class="help-card">
+      <h3>Operators</h3>
+      <ul>
+        <li><kbd>d</kbd><kbd>w</kbd> delete word</li>
+        <li><kbd>dd</kbd> delete line</li>
+        <li><kbd>yy</kbd> yank line</li>
+        <li><kbd>p</kbd> paste</li>
+      </ul>
+    </div>
+    <div class="help-card">
+      <h3>Visual</h3>
+      <ul>
+        <li><kbd>v</kbd> visual mode</li>
+        <li><kbd>V</kbd> visual-line mode</li>
+        <li><kbd>u</kbd> undo</li>
+        <li><kbd>Ctrl</kbd>+<kbd>r</kbd> redo</li>
+      </ul>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -185,14 +185,20 @@ export function executeDelete(
     tr = state.tr.delete(from, to)
     // Position cursor at start of next line or previous line
     const newPos = Math.min(from, tr.doc.content.size)
-    if (newPos > 0 && newPos <= tr.doc.content.size) {
-      try {
-        const $pos = tr.doc.resolve(newPos)
-        const resolvedPos = $pos.start($pos.depth)
-        tr.setSelection(TextSelection.create(tr.doc, resolvedPos))
-      } catch {
-        tr.setSelection(TextSelection.create(tr.doc, Math.min(newPos, tr.doc.content.size)))
+    try {
+      let $pos = tr.doc.resolve(newPos)
+      if ($pos.depth === 0) {
+        if (newPos < tr.doc.content.size) {
+          $pos = tr.doc.resolve(newPos + 1)
+        } else if (newPos > 0) {
+          $pos = tr.doc.resolve(newPos - 1)
+        }
       }
+      if ($pos.depth > 0) {
+        tr.setSelection(TextSelection.create(tr.doc, $pos.start($pos.depth)))
+      }
+    } catch {
+      // leave as-is
     }
   } else {
     tr = state.tr.delete(from, to)
@@ -239,16 +245,18 @@ export function executeChange(
   let tr: Transaction
 
   if (linewise) {
-    // For linewise change, we keep the paragraph but clear its content
-    // Delete only the text content within the paragraph bounds
-    const $from = state.doc.resolve(from)
-    const $to = state.doc.resolve(to)
-
-    // If the range spans entire paragraphs, we want to keep one empty paragraph
-    const contentFrom = $from.start($from.depth)
-    const contentTo = $from.end($from.depth)
-    tr = state.tr.delete(contentFrom, contentTo)
-    tr.setSelection(TextSelection.create(tr.doc, contentFrom))
+    // Delete the selected lines and replace with a single empty paragraph
+    tr = state.tr.delete(from, to)
+    const paragraphType = state.schema.nodes.paragraph
+    if (paragraphType) {
+      const insertAt = Math.min(from, tr.doc.content.size)
+      tr.insert(insertAt, paragraphType.create())
+      try {
+        tr.setSelection(TextSelection.create(tr.doc, insertAt + 1))
+      } catch {
+        // leave as-is
+      }
+    }
   } else {
     tr = state.tr.delete(from, to)
     const newPos = Math.min(from, tr.doc.content.size)
@@ -288,20 +296,22 @@ export function deleteLines(
 
   const tr = state.tr.delete(from, to)
 
-  // Position cursor
+  // Position cursor at start of next (or previous) line
   const newPos = Math.min(from, tr.doc.content.size)
-  if (newPos > 0 && newPos < tr.doc.content.size) {
-    try {
-      const $pos = tr.doc.resolve(newPos)
-      const start = $pos.start($pos.depth)
-      tr.setSelection(TextSelection.create(tr.doc, start))
-    } catch {
-      try {
-        tr.setSelection(TextSelection.create(tr.doc, Math.max(1, newPos)))
-      } catch {
-        // leave as-is
+  try {
+    let $pos = tr.doc.resolve(newPos)
+    if ($pos.depth === 0) {
+      if (newPos < tr.doc.content.size) {
+        $pos = tr.doc.resolve(newPos + 1)
+      } else if (newPos > 0) {
+        $pos = tr.doc.resolve(newPos - 1)
       }
     }
+    if ($pos.depth > 0) {
+      tr.setSelection(TextSelection.create(tr.doc, $pos.start($pos.depth)))
+    }
+  } catch {
+    // leave as-is
   }
 
   return tr

@@ -12,19 +12,41 @@ import {
 } from './utils'
 
 /**
- * Move left by one character, clamped to line start.
+ * Move left by one character; wraps to end of previous line at line start.
  */
 export function motionLeft(state: EditorState, pos: number): number {
   const start = lineStartAt(state, pos)
-  return Math.max(start, pos - 1)
+  if (pos > start) return pos - 1
+  // At line start, wrap to end of previous line
+  const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return pos
+  try {
+    const before = $pos.before($pos.depth)
+    if (before <= 0) return pos
+    const $prev = state.doc.resolve(before - 1)
+    return $prev.end($prev.depth)
+  } catch {
+    return pos
+  }
 }
 
 /**
- * Move right by one character, clamped to line end.
+ * Move right by one character; wraps to start of next line at line end.
  */
 export function motionRight(state: EditorState, pos: number): number {
   const end = lineEndAt(state, pos)
-  return Math.min(end, pos + 1)
+  if (pos < end) return pos + 1
+  // At line end, wrap to start of next line
+  const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return pos
+  try {
+    const after = $pos.after($pos.depth)
+    if (after >= state.doc.content.size) return pos
+    const $next = state.doc.resolve(after + 1)
+    return $next.start($next.depth)
+  } catch {
+    return pos
+  }
 }
 
 /**
@@ -32,6 +54,8 @@ export function motionRight(state: EditorState, pos: number): number {
  */
 export function motionDown(state: EditorState, pos: number): number {
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return pos
+
   const currentLineStart = $pos.start($pos.depth)
   const currentOffset = pos - currentLineStart
 
@@ -58,6 +82,8 @@ export function motionDown(state: EditorState, pos: number): number {
  */
 export function motionUp(state: EditorState, pos: number): number {
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return pos
+
   const currentLineStart = $pos.start($pos.depth)
   const currentOffset = pos - currentLineStart
 

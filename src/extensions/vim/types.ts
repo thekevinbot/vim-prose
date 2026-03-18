@@ -13,6 +13,7 @@ export interface VimState {
   findMotion: 'f' | 'F' | 't' | 'T' | null
   ggPending: boolean
   visualAnchor: number | null
+  visualHead: number | null
   register: Register
 }
 
@@ -30,6 +31,7 @@ export function defaultVimState(): VimState {
     findMotion: null,
     ggPending: false,
     visualAnchor: null,
+    visualHead: null,
     register: { text: '', linewise: false },
   }
 }
