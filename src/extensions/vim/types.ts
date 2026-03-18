@@ -9,7 +9,12 @@ export interface Register {
 }
 
 export interface RepeatableAction {
-  type: 'command' | 'operator-linewise' | 'operator-motion' | 'operator-textobject' | 'insert-command'
+  type:
+    | 'command'
+    | 'operator-linewise'
+    | 'operator-motion'
+    | 'operator-textobject'
+    | 'insert-command'
   key: string
   count: number
   operator?: 'd' | 'y' | 'c'

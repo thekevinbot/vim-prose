@@ -1,7 +1,18 @@
-import { EditorState, Transaction, TextSelection, Selection } from 'prosemirror-state'
+import {
+  EditorState,
+  Transaction,
+  TextSelection,
+  Selection,
+} from 'prosemirror-state'
 import { Fragment, Node as ProseMirrorNode } from 'prosemirror-model'
 import { VimState } from './types'
-import { lineEndAt, lineStartAt, paragraphBounds, lineBounds, charAt } from './utils'
+import {
+  lineEndAt,
+  lineStartAt,
+  paragraphBounds,
+  lineBounds,
+  charAt,
+} from './utils'
 
 /**
  * Delete character under cursor (x command).
@@ -10,7 +21,7 @@ export function deleteChar(
   state: EditorState,
   pos: number,
   vimState: VimState,
-  count: number = 1
+  count: number = 1,
 ): Transaction {
   const lineE = lineEndAt(state, pos)
   const to = Math.min(pos + count, lineE)
@@ -40,7 +51,7 @@ export function pasteAfter(
   state: EditorState,
   pos: number,
   vimState: VimState,
-  count: number = 1
+  count: number = 1,
 ): Transaction {
   if (!vimState.register.text) return state.tr
 
@@ -68,7 +79,10 @@ export function pasteAfter(
       const lines = textToInsert.split('\n')
       let currentInsertPos = insertPos
       for (const line of lines) {
-        const newNode = paragraphType.create(null, line ? state.schema.text(line) : undefined)
+        const newNode = paragraphType.create(
+          null,
+          line ? state.schema.text(line) : undefined,
+        )
         tr.insert(currentInsertPos, newNode)
         currentInsertPos += newNode.nodeSize
       }
@@ -93,7 +107,9 @@ export function pasteAfter(
     // Position cursor at end of inserted text
     const newPos = clampedPos + textToInsert.length - 1
     try {
-      tr.setSelection(TextSelection.create(tr.doc, Math.max(clampedPos, newPos)))
+      tr.setSelection(
+        TextSelection.create(tr.doc, Math.max(clampedPos, newPos)),
+      )
     } catch {
       // leave as-is
     }
@@ -108,7 +124,7 @@ export function pasteBefore(
   state: EditorState,
   pos: number,
   vimState: VimState,
-  count: number = 1
+  count: number = 1,
 ): Transaction {
   if (!vimState.register.text) return state.tr
 
@@ -136,7 +152,10 @@ export function pasteBefore(
       const lines = textToInsert.split('\n')
       let currentInsertPos = insertPos
       for (const line of lines) {
-        const newNode = paragraphType.create(null, line ? state.schema.text(line) : undefined)
+        const newNode = paragraphType.create(
+          null,
+          line ? state.schema.text(line) : undefined,
+        )
         tr.insert(currentInsertPos, newNode)
         currentInsertPos += newNode.nodeSize
       }
@@ -172,7 +191,7 @@ export function pasteBefore(
 export function openLineBelow(
   state: EditorState,
   pos: number,
-  vimState: VimState
+  vimState: VimState,
 ): Transaction {
   const bounds = paragraphBounds(state, pos)
   const insertPos = bounds.to
@@ -201,7 +220,7 @@ export function openLineBelow(
 export function openLineAbove(
   state: EditorState,
   pos: number,
-  vimState: VimState
+  vimState: VimState,
 ): Transaction {
   const bounds = paragraphBounds(state, pos)
   const insertPos = bounds.from
@@ -230,7 +249,7 @@ export function openLineAbove(
 export function joinLines(
   state: EditorState,
   pos: number,
-  count: number = 1
+  count: number = 1,
 ): Transaction {
   const tr = state.tr
   let currentPos = pos
@@ -244,7 +263,8 @@ export function joinLines(
     if (afterNode >= tr.doc.content.size) break
 
     // Check if we need to add a space
-    const lastChar = lineE > $pos.start($pos.depth) ? tr.doc.textBetween(lineE - 1, lineE) : ''
+    const lastChar =
+      lineE > $pos.start($pos.depth) ? tr.doc.textBetween(lineE - 1, lineE) : ''
     const needsSpace = lastChar !== '' && lastChar !== ' '
 
     // Delete the boundary between paragraphs

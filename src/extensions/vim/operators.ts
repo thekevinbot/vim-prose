@@ -1,4 +1,9 @@
-import { EditorState, Transaction, TextSelection, Selection } from 'prosemirror-state'
+import {
+  EditorState,
+  Transaction,
+  TextSelection,
+  Selection,
+} from 'prosemirror-state'
 import { Node as ProseMirrorNode } from 'prosemirror-model'
 import { VimState } from './types'
 import {
@@ -16,7 +21,11 @@ import {
  * For partially-overlapping nodes (e.g. a list where only one item is selected),
  * we create a copy of the parent with only the selected children.
  */
-function extractTopLevelNodes(state: EditorState, from: number, to: number): ProseMirrorNode[] {
+function extractTopLevelNodes(
+  state: EditorState,
+  from: number,
+  to: number,
+): ProseMirrorNode[] {
   const nodes: ProseMirrorNode[] = []
   state.doc.nodesBetween(from, to, (node, pos, parent) => {
     if (parent === state.doc) {
@@ -46,7 +55,7 @@ export function resolveTextObject(
   state: EditorState,
   pos: number,
   type: 'i' | 'a',
-  object: string
+  object: string,
 ): { from: number; to: number } | null {
   if (object === 'w') {
     return resolveWordObject(state, pos)
@@ -72,7 +81,10 @@ export function resolveTextObject(
   return resolveDelimiterObject(state, pos, type, pair[0], pair[1])
 }
 
-function resolveWordObject(state: EditorState, pos: number): { from: number; to: number } | null {
+function resolveWordObject(
+  state: EditorState,
+  pos: number,
+): { from: number; to: number } | null {
   const $pos = state.doc.resolve(pos)
   const lineS = $pos.start($pos.depth)
   const lineE = $pos.end($pos.depth)
@@ -92,8 +104,18 @@ function resolveWordObject(state: EditorState, pos: number): { from: number; to:
     while (to < lineE && isWhitespace(charAt(state, to))) to++
   } else {
     // Punctuation
-    while (from > lineS && !isWordChar(charAt(state, from - 1)) && !isWhitespace(charAt(state, from - 1))) from--
-    while (to < lineE && !isWordChar(charAt(state, to)) && !isWhitespace(charAt(state, to))) to++
+    while (
+      from > lineS &&
+      !isWordChar(charAt(state, from - 1)) &&
+      !isWhitespace(charAt(state, from - 1))
+    )
+      from--
+    while (
+      to < lineE &&
+      !isWordChar(charAt(state, to)) &&
+      !isWhitespace(charAt(state, to))
+    )
+      to++
   }
 
   return { from, to }
@@ -104,7 +126,7 @@ function resolveDelimiterObject(
   pos: number,
   type: 'i' | 'a',
   open: string,
-  close: string
+  close: string,
 ): { from: number; to: number } | null {
   // For quotes, simple scan within current paragraph
   const $pos = state.doc.resolve(pos)
@@ -203,7 +225,7 @@ export function executeDelete(
   from: number,
   to: number,
   vimState: VimState,
-  linewise: boolean = false
+  linewise: boolean = false,
 ): Transaction {
   const text = state.doc.textBetween(from, to, '\n', '\n')
   const content = linewise ? extractTopLevelNodes(state, from, to) : null
@@ -216,7 +238,8 @@ export function executeDelete(
     const newPos = Math.min(from, tr.doc.content.size)
     try {
       const $pos = tr.doc.resolve(newPos)
-      const sel = Selection.findFrom($pos, 1, true) || Selection.findFrom($pos, -1, true)
+      const sel =
+        Selection.findFrom($pos, 1, true) || Selection.findFrom($pos, -1, true)
       if (sel) tr.setSelection(sel)
     } catch {
       // leave as-is
@@ -243,7 +266,7 @@ export function executeYank(
   from: number,
   to: number,
   vimState: VimState,
-  linewise: boolean = false
+  linewise: boolean = false,
 ): void {
   const text = state.doc.textBetween(from, to, '\n', '\n')
   const content = linewise ? extractTopLevelNodes(state, from, to) : null
@@ -259,7 +282,7 @@ export function executeChange(
   from: number,
   to: number,
   vimState: VimState,
-  linewise: boolean = false
+  linewise: boolean = false,
 ): Transaction {
   const text = state.doc.textBetween(from, to, '\n', '\n')
   const content = linewise ? extractTopLevelNodes(state, from, to) : null
@@ -301,13 +324,16 @@ export function deleteLines(
   state: EditorState,
   pos: number,
   count: number,
-  vimState: VimState
+  vimState: VimState,
 ): Transaction {
   let from = lineBounds(state, pos).from
   let to = from
 
   for (let i = 0; i < count; i++) {
-    const bounds = lineBounds(state, Math.min(to + 1, state.doc.content.size - 1))
+    const bounds = lineBounds(
+      state,
+      Math.min(to + 1, state.doc.content.size - 1),
+    )
     to = bounds.to
     if (to >= state.doc.content.size) break
   }
@@ -324,7 +350,8 @@ export function deleteLines(
   const newPos = Math.min(from, tr.doc.content.size)
   try {
     const $pos = tr.doc.resolve(newPos)
-    const sel = Selection.findFrom($pos, 1, true) || Selection.findFrom($pos, -1, true)
+    const sel =
+      Selection.findFrom($pos, 1, true) || Selection.findFrom($pos, -1, true)
     if (sel) tr.setSelection(sel)
   } catch {
     // leave as-is
@@ -340,13 +367,16 @@ export function yankLines(
   state: EditorState,
   pos: number,
   count: number,
-  vimState: VimState
+  vimState: VimState,
 ): void {
   let from = lineBounds(state, pos).from
   let to = from
 
   for (let i = 0; i < count; i++) {
-    const bounds = lineBounds(state, Math.min(to + 1, state.doc.content.size - 1))
+    const bounds = lineBounds(
+      state,
+      Math.min(to + 1, state.doc.content.size - 1),
+    )
     to = bounds.to
     if (to >= state.doc.content.size) break
   }
@@ -365,7 +395,7 @@ export function changeLines(
   state: EditorState,
   pos: number,
   count: number,
-  vimState: VimState
+  vimState: VimState,
 ): Transaction {
   // For `cc` with count, delete extra lines and clear the first one
   const $pos = state.doc.resolve(pos)
@@ -386,7 +416,10 @@ export function changeLines(
   let from = lineBounds(state, pos).from
   let to = from
   for (let i = 0; i < count; i++) {
-    const bounds = lineBounds(state, Math.min(to + 1, state.doc.content.size - 1))
+    const bounds = lineBounds(
+      state,
+      Math.min(to + 1, state.doc.content.size - 1),
+    )
     to = bounds.to
     if (to >= state.doc.content.size) break
   }

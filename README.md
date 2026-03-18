@@ -49,8 +49,12 @@ import { history, undo, redo } from 'prosemirror-history'
 const vimPlugin = createVimPlugin({
   undo: () => undo(view.state, view.dispatch),
   redo: () => redo(view.state, view.dispatch),
-  indent: () => { /* your indent logic */ return true },
-  outdent: () => { /* your outdent logic */ return true },
+  indent: () => {
+    /* your indent logic */ return true
+  },
+  outdent: () => {
+    /* your outdent logic */ return true
+  },
 })
 
 const state = EditorState.create({
@@ -72,116 +76,116 @@ Import the bundled CSS for basic mode-indicator styling:
 
 ### Modes
 
-| Mode | Description |
-|------|-------------|
-| `normal` | Default mode — motions, operators, commands |
-| `insert` | Native editor input; only `Esc`/`Ctrl-c` is intercepted |
-| `visual` | Characterwise selection |
-| `visual-line` | Linewise (full paragraph) selection |
+| Mode          | Description                                             |
+| ------------- | ------------------------------------------------------- |
+| `normal`      | Default mode — motions, operators, commands             |
+| `insert`      | Native editor input; only `Esc`/`Ctrl-c` is intercepted |
+| `visual`      | Characterwise selection                                 |
+| `visual-line` | Linewise (full paragraph) selection                     |
 
 ### Mode Switching
 
-| Key | Action |
-|-----|--------|
-| `i` | Insert before cursor |
-| `I` | Insert at first non-blank character |
-| `a` | Insert after cursor |
-| `A` | Insert at end of line |
-| `v` | Enter / toggle characterwise visual mode |
-| `V` | Enter / toggle visual-line mode |
+| Key              | Action                                     |
+| ---------------- | ------------------------------------------ |
+| `i`              | Insert before cursor                       |
+| `I`              | Insert at first non-blank character        |
+| `a`              | Insert after cursor                        |
+| `A`              | Insert at end of line                      |
+| `v`              | Enter / toggle characterwise visual mode   |
+| `V`              | Enter / toggle visual-line mode            |
 | `Esc` / `Ctrl-c` | Return to normal mode; clear pending state |
 
 ### Motions
 
 Work in normal mode, visual mode, and operator-pending mode.
 
-| Key | Motion |
-|-----|--------|
-| `h` / `l` | Left / right by character |
-| `j` / `k` | Down / up by line (paragraph) |
-| `0` | Start of line |
-| `^` | First non-blank character of line |
-| `$` | End of line |
-| `gg` | Start of document |
-| `G` | End of document |
-| `w` | Forward by word |
-| `b` | Backward by word |
-| `f{char}` | Forward to next occurrence of char on line (inclusive) |
+| Key       | Motion                                                      |
+| --------- | ----------------------------------------------------------- |
+| `h` / `l` | Left / right by character                                   |
+| `j` / `k` | Down / up by line (paragraph)                               |
+| `0`       | Start of line                                               |
+| `^`       | First non-blank character of line                           |
+| `$`       | End of line                                                 |
+| `gg`      | Start of document                                           |
+| `G`       | End of document                                             |
+| `w`       | Forward by word                                             |
+| `b`       | Backward by word                                            |
+| `f{char}` | Forward to next occurrence of char on line (inclusive)      |
 | `F{char}` | Backward to previous occurrence of char on line (inclusive) |
-| `t{char}` | Forward till char (exclusive — stops one before) |
-| `T{char}` | Backward till char (exclusive — stops one after) |
-| `Ctrl-d` | Half-page down |
-| `Ctrl-u` | Half-page up |
-| `Ctrl-f` | Full-page down |
-| `Ctrl-b` | Full-page up |
+| `t{char}` | Forward till char (exclusive — stops one before)            |
+| `T{char}` | Backward till char (exclusive — stops one after)            |
+| `Ctrl-d`  | Half-page down                                              |
+| `Ctrl-u`  | Half-page up                                                |
+| `Ctrl-f`  | Full-page down                                              |
+| `Ctrl-b`  | Full-page up                                                |
 
 ### Operators
 
 Operators combine with motions and text objects in normal mode, or act on the selection in visual mode.
 
-| Operator | Action |
-|----------|--------|
-| `d` | Delete |
-| `y` | Yank (copy to register) |
-| `c` | Change (delete + enter insert mode) |
+| Operator | Action                              |
+| -------- | ----------------------------------- |
+| `d`      | Delete                              |
+| `y`      | Yank (copy to register)             |
+| `c`      | Change (delete + enter insert mode) |
 
 Examples: `dw`, `y$`, `ciw`, `da(`, `df,`
 
 ### Linewise Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `dd` | Delete current line |
-| `yy` | Yank current line |
+| Key  | Action                                            |
+| ---- | ------------------------------------------------- |
+| `dd` | Delete current line                               |
+| `yy` | Yank current line                                 |
 | `cc` | Change current line (clear content, enter insert) |
-| `D` | Delete to end of line |
-| `Y` | Yank to end of line |
-| `C` | Change to end of line |
+| `D`  | Delete to end of line                             |
+| `Y`  | Yank to end of line                               |
+| `C`  | Change to end of line                             |
 
 ### Text Objects
 
 Used with operators (`d`, `y`, `c`) or in visual mode.
 
-| Object | Inner (`i`) | Around (`a`) |
-|--------|------------|--------------|
-| Word | `iw` | `aw` (same as `iw`) |
-| Parentheses | `i(` / `i)` | `a(` / `a)` |
-| Brackets | `i[` / `i]` | `a[` / `a]` |
-| Braces | `i{` / `i}` | `a{` / `a}` |
-| Angle brackets | `i<` / `i>` | `a<` / `a>` |
-| Single quotes | `i'` | `a'` |
-| Double quotes | `i"` | `a"` |
-| Backticks | `` i` `` | `` a` `` |
+| Object         | Inner (`i`) | Around (`a`)        |
+| -------------- | ----------- | ------------------- |
+| Word           | `iw`        | `aw` (same as `iw`) |
+| Parentheses    | `i(` / `i)` | `a(` / `a)`         |
+| Brackets       | `i[` / `i]` | `a[` / `a]`         |
+| Braces         | `i{` / `i}` | `a{` / `a}`         |
+| Angle brackets | `i<` / `i>` | `a<` / `a>`         |
+| Single quotes  | `i'`        | `a'`                |
+| Double quotes  | `i"`        | `a"`                |
+| Backticks      | `` i` ``    | `` a` ``            |
 
 `i` selects content inside delimiters; `a` includes the delimiters themselves.
 
 ### Editing Commands
 
-| Key | Action |
-|-----|--------|
-| `x` | Delete character under cursor |
-| `p` | Paste register after cursor (linewise: inserts paragraph below) |
-| `P` | Paste register before cursor (linewise: inserts paragraph above) |
-| `o` | Open new line below, enter insert mode |
-| `O` | Open new line above, enter insert mode |
-| `J` | Join current line with the next line |
-| `>>` | Indent current line (list item sink) |
-| `<<` | Outdent current line (list item lift) |
+| Key  | Action                                                           |
+| ---- | ---------------------------------------------------------------- |
+| `x`  | Delete character under cursor                                    |
+| `p`  | Paste register after cursor (linewise: inserts paragraph below)  |
+| `P`  | Paste register before cursor (linewise: inserts paragraph above) |
+| `o`  | Open new line below, enter insert mode                           |
+| `O`  | Open new line above, enter insert mode                           |
+| `J`  | Join current line with the next line                             |
+| `>>` | Indent current line (list item sink)                             |
+| `<<` | Outdent current line (list item lift)                            |
 
 ### Undo / Redo
 
-| Key | Action |
-|-----|--------|
-| `u` | Undo |
-| `Ctrl-r` | Redo |
+| Key      | Action |
+| -------- | ------ |
+| `u`      | Undo   |
+| `Ctrl-r` | Redo   |
 
 ### Search
 
-| Key | Action |
-|-----|--------|
-| `/` | Open search bar, type query, press Enter to search |
-| `n` | Jump to next search match (wraps around) |
-| `N` | Jump to previous search match (wraps around) |
+| Key | Action                                              |
+| --- | --------------------------------------------------- |
+| `/` | Open search bar, type query, press Enter to search  |
+| `n` | Jump to next search match (wraps around)            |
+| `N` | Jump to previous search match (wraps around)        |
 | `*` | Search for the word under cursor (whole-word match) |
 
 The search bar appears below the editor with incremental highlighting as you type. All matches are highlighted in yellow, with the current match in orange. The status line shows the current result index (e.g. `3/14`).
@@ -190,10 +194,10 @@ After `*`, `n` and `N` continue navigating with whole-word matching.
 
 ### Marks
 
-| Key | Action |
-|-----|--------|
+| Key       | Action                                                          |
+| --------- | --------------------------------------------------------------- |
 | `m{char}` | Set mark at current cursor position (`a`-`z`, `A`-`Z`, `0`-`9`) |
-| `'{char}` | Jump to mark position |
+| `'{char}` | Jump to mark position                                           |
 
 Mark positions are automatically updated through document changes. Jumping to a mark centers the cursor in the editor. Works with operators (e.g. `d'a` deletes to mark `a`).
 
@@ -201,8 +205,8 @@ The status line shows feedback: `mark a set`, `mark a`, `mark x not set`.
 
 ### Dot Repeat
 
-| Key | Action |
-|-----|--------|
+| Key | Action                               |
+| --- | ------------------------------------ |
 | `.` | Repeat last document-changing action |
 
 Repeatable actions include:
@@ -217,8 +221,8 @@ A count prefix overrides the stored count (e.g. `3x` then `2.` deletes 2 chars).
 
 ### Scrolling
 
-| Key | Action |
-|-----|--------|
+| Key  | Action                                     |
+| ---- | ------------------------------------------ |
 | `zz` | Center cursor vertically within the editor |
 
 Centering only scrolls the editor's own container — it never scrolls the surrounding page.

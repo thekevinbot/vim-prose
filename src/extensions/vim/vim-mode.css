@@ -64,7 +64,9 @@
 }
 
 @keyframes vim-cursor-blink {
-  50% { opacity: 0; }
+  50% {
+    opacity: 0;
+  }
 }
 
 /* Search match highlights */

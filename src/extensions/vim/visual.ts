@@ -9,7 +9,7 @@ export function updateVisualSelection(
   state: EditorState,
   tr: Transaction,
   vimState: VimState,
-  newHead: number
+  newHead: number,
 ): Transaction {
   if (vimState.visualAnchor === null) return tr
 
@@ -58,7 +58,7 @@ export function updateVisualSelection(
  */
 export function getVisualRange(
   state: EditorState,
-  vimState: VimState
+  vimState: VimState,
 ): { from: number; to: number; linewise: boolean } | null {
   if (vimState.visualAnchor === null) return null
 

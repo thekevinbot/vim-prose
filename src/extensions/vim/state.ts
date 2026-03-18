@@ -1,4 +1,10 @@
-import { Plugin, PluginKey, EditorState, Selection, Transaction } from 'prosemirror-state'
+import {
+  Plugin,
+  PluginKey,
+  EditorState,
+  Selection,
+  Transaction,
+} from 'prosemirror-state'
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view'
 import { VimState, VimEditorCommands, defaultVimState } from './types'
 import { handleKeyDown } from './keyHandler'
@@ -50,7 +56,10 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
       searchBar.appendChild(searchCursor)
 
       // Insert after the editor
-      editorView.dom.parentNode?.insertBefore(searchBar, editorView.dom.nextSibling)
+      editorView.dom.parentNode?.insertBefore(
+        searchBar,
+        editorView.dom.nextSibling,
+      )
 
       return {
         update() {
@@ -78,7 +87,10 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
               vimState.visualAnchor = from
               vimState.visualHead = to > from ? to - 1 : from
               view.dispatch(view.state.tr)
-            } else if (from === to && (vimState.mode === 'visual' || vimState.mode === 'visual-line')) {
+            } else if (
+              from === to &&
+              (vimState.mode === 'visual' || vimState.mode === 'visual-line')
+            ) {
               // Click (empty selection) in visual mode → exit to normal
               vimState.mode = 'normal'
               vimState.visualAnchor = null
@@ -94,7 +106,12 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
         return handleKeyDown(view, event, vimState, commands)
       },
 
-      handleTextInput(_view: EditorView, _from: number, _to: number, text: string) {
+      handleTextInput(
+        _view: EditorView,
+        _from: number,
+        _to: number,
+        text: string,
+      ) {
         if (vimState.isTrackingInsert) {
           vimState.insertTextBuffer += text
         }
@@ -118,23 +135,31 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
             let $pos = state.doc.resolve(cursorPos)
             // If at document root (depth 0), find nearest textblock
             if ($pos.depth === 0) {
-              const sel = Selection.findFrom($pos, 1, true) || Selection.findFrom($pos, -1, true)
+              const sel =
+                Selection.findFrom($pos, 1, true) ||
+                Selection.findFrom($pos, -1, true)
               if (sel) $pos = sel.$from
             }
             if ($pos.depth > 0) {
               const lineEnd = $pos.end($pos.depth)
               if (cursorPos < lineEnd) {
                 decorations.push(
-                  Decoration.inline(cursorPos, cursorPos + 1, { class: 'vim-block-cursor' })
+                  Decoration.inline(cursorPos, cursorPos + 1, {
+                    class: 'vim-block-cursor',
+                  }),
                 )
               } else {
                 decorations.push(
-                  Decoration.widget(cursorPos, () => {
-                    const span = document.createElement('span')
-                    span.className = 'vim-block-cursor-eol'
-                    span.textContent = '\u00a0'
-                    return span
-                  }, { side: 0 })
+                  Decoration.widget(
+                    cursorPos,
+                    () => {
+                      const span = document.createElement('span')
+                      span.className = 'vim-block-cursor-eol'
+                      span.textContent = '\u00a0'
+                      return span
+                    },
+                    { side: 0 },
+                  ),
                 )
               }
             }
@@ -143,18 +168,24 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
           }
 
           // Visual selection highlight via decoration (more reliable than ::selection)
-          if ((vimState.mode === 'visual' || vimState.mode === 'visual-line') &&
-              state.selection.from < state.selection.to) {
+          if (
+            (vimState.mode === 'visual' || vimState.mode === 'visual-line') &&
+            state.selection.from < state.selection.to
+          ) {
             decorations.push(
               Decoration.inline(state.selection.from, state.selection.to, {
                 class: 'vim-visual-selection',
-              })
+              }),
             )
           }
         }
 
         // Search match highlights (visible in all modes)
-        const activeSearchTerm = vimState.searchActive ? vimState.searchQuery : (vimState.searchHighlightsVisible ? vimState.searchTerm : '')
+        const activeSearchTerm = vimState.searchActive
+          ? vimState.searchQuery
+          : vimState.searchHighlightsVisible
+            ? vimState.searchTerm
+            : ''
         if (activeSearchTerm) {
           const wholeWord = !vimState.searchActive && vimState.searchWholeWord
           const matches = findAllMatches(state, activeSearchTerm, wholeWord)
@@ -164,8 +195,10 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
               const isCurrent = matchPos <= cursorPos && cursorPos < end
               decorations.push(
                 Decoration.inline(matchPos, end, {
-                  class: isCurrent ? 'vim-search-match-current' : 'vim-search-match',
-                })
+                  class: isCurrent
+                    ? 'vim-search-match-current'
+                    : 'vim-search-match',
+                }),
               )
             }
           }
@@ -182,6 +215,8 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
 /**
  * Get the current vim state from an EditorState.
  */
-export function getVimStateFromEditorState(state: EditorState): VimState | null {
+export function getVimStateFromEditorState(
+  state: EditorState,
+): VimState | null {
   return vimPluginKey.getState(state) ?? null
 }

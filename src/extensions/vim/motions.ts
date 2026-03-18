@@ -90,7 +90,11 @@ export function motionRight(state: EditorState, pos: number): number {
  * Uses Selection.findFrom to correctly traverse nested structures
  * (lists, blockquotes, etc.) and skip leaf nodes (hr).
  */
-export function motionDown(state: EditorState, pos: number, goalColumn?: number): number {
+export function motionDown(
+  state: EditorState,
+  pos: number,
+  goalColumn?: number,
+): number {
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) {
     // At document root, try to find a textblock forward
@@ -99,7 +103,8 @@ export function motionDown(state: EditorState, pos: number, goalColumn?: number)
   }
 
   const currentLineStart = $pos.start($pos.depth)
-  const currentOffset = goalColumn !== undefined ? goalColumn : (pos - currentLineStart)
+  const currentOffset =
+    goalColumn !== undefined ? goalColumn : pos - currentLineStart
 
   // Find the next textblock after the current one
   try {
@@ -124,7 +129,11 @@ export function motionDown(state: EditorState, pos: number, goalColumn?: number)
  * Move up by one line, trying to preserve column offset.
  * Uses Selection.findFrom to correctly traverse nested structures.
  */
-export function motionUp(state: EditorState, pos: number, goalColumn?: number): number {
+export function motionUp(
+  state: EditorState,
+  pos: number,
+  goalColumn?: number,
+): number {
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) {
     const prev = findPrevTextPos(state, pos)
@@ -132,7 +141,8 @@ export function motionUp(state: EditorState, pos: number, goalColumn?: number): 
   }
 
   const currentLineStart = $pos.start($pos.depth)
-  const currentOffset = goalColumn !== undefined ? goalColumn : (pos - currentLineStart)
+  const currentOffset =
+    goalColumn !== undefined ? goalColumn : pos - currentLineStart
 
   // Find the previous textblock before the current one
   try {
@@ -217,7 +227,10 @@ export function motionDocEnd(state: EditorState): number {
 /**
  * Helper: cross to the start of the next textblock from after the current one.
  */
-function crossToNextTextblock(state: EditorState, $pos: ReturnType<typeof state.doc.resolve>): number | null {
+function crossToNextTextblock(
+  state: EditorState,
+  $pos: ReturnType<typeof state.doc.resolve>,
+): number | null {
   try {
     const afterNode = $pos.after($pos.depth)
     if (afterNode >= state.doc.content.size) return null
@@ -233,7 +246,10 @@ function crossToNextTextblock(state: EditorState, $pos: ReturnType<typeof state.
 /**
  * Helper: cross to the end of the previous textblock from before the current one.
  */
-function crossToPrevTextblock(state: EditorState, $pos: ReturnType<typeof state.doc.resolve>): number | null {
+function crossToPrevTextblock(
+  state: EditorState,
+  $pos: ReturnType<typeof state.doc.resolve>,
+): number | null {
   try {
     const beforeNode = $pos.before($pos.depth)
     if (beforeNode <= 0) return null
@@ -284,7 +300,11 @@ export function motionWordForward(state: EditorState, pos: number): number {
     }
   } else {
     // Non-word, non-whitespace (punctuation)
-    while (current < lineEndPos && !isWordChar(charAt(state, current)) && !isWhitespace(charAt(state, current))) {
+    while (
+      current < lineEndPos &&
+      !isWordChar(charAt(state, current)) &&
+      !isWhitespace(charAt(state, current))
+    ) {
       current++
     }
     // Skip whitespace
@@ -336,7 +356,11 @@ export function motionWordBackward(state: EditorState, pos: number): number {
     }
   } else {
     // Non-word, non-whitespace (punctuation)
-    while (current > lineStartPos && !isWordChar(charAt(state, current - 1)) && !isWhitespace(charAt(state, current - 1))) {
+    while (
+      current > lineStartPos &&
+      !isWordChar(charAt(state, current - 1)) &&
+      !isWhitespace(charAt(state, current - 1))
+    ) {
       current--
     }
   }
@@ -347,7 +371,11 @@ export function motionWordBackward(state: EditorState, pos: number): number {
 /**
  * Forward find char on current line (f motion).
  */
-export function motionFindCharForward(state: EditorState, pos: number, char: string): number | null {
+export function motionFindCharForward(
+  state: EditorState,
+  pos: number,
+  char: string,
+): number | null {
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) return null
   const end = $pos.end($pos.depth)
@@ -362,7 +390,11 @@ export function motionFindCharForward(state: EditorState, pos: number, char: str
 /**
  * Backward find char on current line (F motion).
  */
-export function motionFindCharBackward(state: EditorState, pos: number, char: string): number | null {
+export function motionFindCharBackward(
+  state: EditorState,
+  pos: number,
+  char: string,
+): number | null {
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) return null
   const start = $pos.start($pos.depth)
@@ -377,7 +409,11 @@ export function motionFindCharBackward(state: EditorState, pos: number, char: st
 /**
  * Forward till char on current line (t motion) — stops one before the char.
  */
-export function motionTillCharForward(state: EditorState, pos: number, char: string): number | null {
+export function motionTillCharForward(
+  state: EditorState,
+  pos: number,
+  char: string,
+): number | null {
   const found = motionFindCharForward(state, pos, char)
   if (found !== null && found > pos + 1) {
     return found - 1
@@ -390,7 +426,11 @@ export function motionTillCharForward(state: EditorState, pos: number, char: str
 /**
  * Backward till char on current line (T motion) — stops one after the char.
  */
-export function motionTillCharBackward(state: EditorState, pos: number, char: string): number | null {
+export function motionTillCharBackward(
+  state: EditorState,
+  pos: number,
+  char: string,
+): number | null {
   const found = motionFindCharBackward(state, pos, char)
   if (found !== null) {
     return found + 1

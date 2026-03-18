@@ -100,7 +100,10 @@ export function charAt(state: EditorState, pos: number): string {
  * Returns [nodeStart, nodeEnd] where nodeStart is the position before the node
  * and nodeEnd is the position after the node (including the node itself).
  */
-export function paragraphBounds(state: EditorState, pos: number): { from: number; to: number } {
+export function paragraphBounds(
+  state: EditorState,
+  pos: number,
+): { from: number; to: number } {
   let $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) {
     // At document root (between nodes), resolve into nearest textblock
@@ -121,7 +124,10 @@ export function paragraphBounds(state: EditorState, pos: number): { from: number
 /**
  * Get the word under cursor at the given position.
  */
-export function wordUnderCursor(state: EditorState, pos: number): string | null {
+export function wordUnderCursor(
+  state: EditorState,
+  pos: number,
+): string | null {
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) return null
   const lineS = $pos.start($pos.depth)
@@ -142,7 +148,11 @@ export function wordUnderCursor(state: EditorState, pos: number): string | null 
 /**
  * Find all positions of a search term in the document.
  */
-export function findAllMatches(state: EditorState, term: string, wholeWord: boolean = false): number[] {
+export function findAllMatches(
+  state: EditorState,
+  term: string,
+  wholeWord: boolean = false,
+): number[] {
   if (!term) return []
   const positions: number[] = []
 
@@ -154,7 +164,10 @@ export function findAllMatches(state: EditorState, term: string, wholeWord: bool
         if (found === -1) break
         if (wholeWord) {
           const before = found > 0 ? node.text[found - 1] : ''
-          const after = found + term.length < node.text.length ? node.text[found + term.length] : ''
+          const after =
+            found + term.length < node.text.length
+              ? node.text[found + term.length]
+              : ''
           if ((before && isWordChar(before)) || (after && isWordChar(after))) {
             idx = found + 1
             continue
@@ -172,7 +185,12 @@ export function findAllMatches(state: EditorState, term: string, wholeWord: bool
 /**
  * Find the next match position after fromPos, wrapping around.
  */
-export function findNextMatch(state: EditorState, term: string, fromPos: number, wholeWord: boolean = false): number | null {
+export function findNextMatch(
+  state: EditorState,
+  term: string,
+  fromPos: number,
+  wholeWord: boolean = false,
+): number | null {
   const matches = findAllMatches(state, term, wholeWord)
   if (matches.length === 0) return null
   for (const pos of matches) {
@@ -184,7 +202,12 @@ export function findNextMatch(state: EditorState, term: string, fromPos: number,
 /**
  * Find the previous match position before fromPos, wrapping around.
  */
-export function findPrevMatch(state: EditorState, term: string, fromPos: number, wholeWord: boolean = false): number | null {
+export function findPrevMatch(
+  state: EditorState,
+  term: string,
+  fromPos: number,
+  wholeWord: boolean = false,
+): number | null {
   const matches = findAllMatches(state, term, wholeWord)
   if (matches.length === 0) return null
   for (let i = matches.length - 1; i >= 0; i--) {
@@ -198,7 +221,10 @@ export function findPrevMatch(state: EditorState, term: string, fromPos: number,
  * For text inside a list item with a single child, returns the list item bounds.
  * Otherwise returns the textblock bounds (same as paragraphBounds).
  */
-export function lineBounds(state: EditorState, pos: number): { from: number; to: number } {
+export function lineBounds(
+  state: EditorState,
+  pos: number,
+): { from: number; to: number } {
   let $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) {
     if (pos < state.doc.content.size) {

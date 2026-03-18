@@ -5,10 +5,7 @@ import '../src/extensions/vim/vim-mode.css'
 
 const editor = new Editor({
   element: document.querySelector('#editor')!,
-  extensions: [
-    StarterKit,
-    VimMode,
-  ],
+  extensions: [StarterKit, VimMode],
   content: `
     <h2>Welcome to vim-prose</h2>
     <p>A Vim mode for rich-text editing with ProseMirror and Tiptap. Navigate through this document using vim motions — the cursor moves smoothly through headings, lists, blockquotes, and horizontal rules.</p>
@@ -47,7 +44,10 @@ const modeHints: Record<string, string> = {
 
 function updateModeDisplay() {
   const mode = getVimMode(editor)
-  badge.textContent = mode === 'visual-line' ? 'V-Line' : mode.charAt(0).toUpperCase() + mode.slice(1)
+  badge.textContent =
+    mode === 'visual-line'
+      ? 'V-Line'
+      : mode.charAt(0).toUpperCase() + mode.slice(1)
   badge.className = mode
   const status = getVimStatus(editor)
   hint.textContent = status || (modeHints[mode] ?? '')

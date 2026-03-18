@@ -1,4 +1,9 @@
-import { EditorState, Transaction, TextSelection, Selection } from 'prosemirror-state'
+import {
+  EditorState,
+  Transaction,
+  TextSelection,
+  Selection,
+} from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
 import { VimState, VimEditorCommands, RepeatableAction } from './types'
 import {
@@ -40,7 +45,15 @@ import {
   joinLines,
 } from './commands'
 import { updateVisualSelection, getVisualRange } from './visual'
-import { lineStartAt, lineEndAt, firstNonBlank, findAllMatches, findNextMatch, findPrevMatch, wordUnderCursor } from './utils'
+import {
+  lineStartAt,
+  lineEndAt,
+  firstNonBlank,
+  findAllMatches,
+  findNextMatch,
+  findPrevMatch,
+  wordUnderCursor,
+} from './utils'
 
 function clearPendingState(vimState: VimState) {
   vimState.count = null
@@ -292,7 +305,10 @@ function replayLastAction(
           view.dispatch(tr)
           if (action.insertedText) {
             const ns = view.state
-            const itr = ns.tr.insertText(action.insertedText, ns.selection.$head.pos)
+            const itr = ns.tr.insertText(
+              action.insertedText,
+              ns.selection.$head.pos,
+            )
             view.dispatch(itr)
             vimState.mode = 'normal'
             const fs = view.state
@@ -357,7 +373,10 @@ function replayLastAction(
 
         if (action.operator === 'c' && action.insertedText) {
           const ns = view.state
-          const itr = ns.tr.insertText(action.insertedText, ns.selection.$head.pos)
+          const itr = ns.tr.insertText(
+            action.insertedText,
+            ns.selection.$head.pos,
+          )
           view.dispatch(itr)
           vimState.mode = 'normal'
           const fs = view.state
@@ -371,10 +390,21 @@ function replayLastAction(
     case 'operator-textobject': {
       if (!action.operator || !action.textObject) break
 
-      const result = resolveTextObject(state, pos, action.textObject.type, action.textObject.object)
+      const result = resolveTextObject(
+        state,
+        pos,
+        action.textObject.type,
+        action.textObject.object,
+      )
       if (result) {
         vimState.operator = action.operator!
-        const tr = handleOperatorMotion(state, vimState, result.from, result.to, false)
+        const tr = handleOperatorMotion(
+          state,
+          vimState,
+          result.from,
+          result.to,
+          false,
+        )
         if (tr) {
           tr.scrollIntoView()
           view.dispatch(tr)
@@ -382,7 +412,10 @@ function replayLastAction(
 
         if (action.operator === 'c' && action.insertedText) {
           const ns = view.state
-          const itr = ns.tr.insertText(action.insertedText, ns.selection.$head.pos)
+          const itr = ns.tr.insertText(
+            action.insertedText,
+            ns.selection.$head.pos,
+          )
           view.dispatch(itr)
           vimState.mode = 'normal'
           const fs = view.state
@@ -442,7 +475,10 @@ function replayLastAction(
       // Insert the recorded text and return to normal mode
       if (action.insertedText) {
         const ns = view.state
-        const itr = ns.tr.insertText(action.insertedText, ns.selection.$head.pos)
+        const itr = ns.tr.insertText(
+          action.insertedText,
+          ns.selection.$head.pos,
+        )
         view.dispatch(itr)
         vimState.mode = 'normal'
         const fs = view.state
@@ -494,7 +530,7 @@ export function handleKeyDown(
       // Find and go to first match
       const matches = findAllMatches(state, vimState.searchTerm, false)
       if (matches.length > 0) {
-        let idx = matches.findIndex(m => m > pos)
+        let idx = matches.findIndex((m) => m > pos)
         if (idx === -1) idx = 0 // wrap around
         vimState.statusMessage = `${idx + 1}/${matches.length}`
         view.dispatch(moveCursor(state, matches[idx]))
@@ -824,7 +860,12 @@ export function handleKeyDown(
   // ── MARK PENDING (m + char) ──
   if (vimState.markPending) {
     // Ignore modifier-only keys
-    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+    if (
+      key === 'Shift' ||
+      key === 'Control' ||
+      key === 'Alt' ||
+      key === 'Meta'
+    ) {
       return true
     }
     if (key.length === 1 && /[a-zA-Z0-9]/.test(key)) {
@@ -840,7 +881,12 @@ export function handleKeyDown(
   // ── GOTO MARK PENDING (' + char) ──
   if (vimState.gotoMarkPending) {
     // Ignore modifier-only keys
-    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+    if (
+      key === 'Shift' ||
+      key === 'Control' ||
+      key === 'Alt' ||
+      key === 'Meta'
+    ) {
       return true
     }
     if (key.length === 1 && /[a-zA-Z0-9]/.test(key)) {
@@ -849,7 +895,13 @@ export function handleKeyDown(
         const clampedPos = Math.min(markPos, state.doc.content.size)
         vimState.statusMessage = `mark ${key}`
         if (vimState.operator) {
-          const tr = handleOperatorMotion(state, vimState, pos, clampedPos, false)
+          const tr = handleOperatorMotion(
+            state,
+            vimState,
+            pos,
+            clampedPos,
+            false,
+          )
           if (tr) view.dispatch(tr)
         } else {
           view.dispatch(moveCursor(state, clampedPos))
@@ -1069,7 +1121,12 @@ export function handleKeyDown(
       switch (vimState.operator) {
         case 'd': {
           const tr = deleteLines(state, pos, count, vimState)
-          vimState.lastAction = { type: 'operator-linewise', key: 'dd', count, operator: 'd' }
+          vimState.lastAction = {
+            type: 'operator-linewise',
+            key: 'dd',
+            count,
+            operator: 'd',
+          }
           clearPendingState(vimState)
           tr.scrollIntoView()
           view.dispatch(tr)
@@ -1085,7 +1142,12 @@ export function handleKeyDown(
           clearPendingState(vimState)
           tr.scrollIntoView()
           view.dispatch(tr)
-          startInsertTracking(vimState, { type: 'operator-linewise', key: 'cc', count, operator: 'c' })
+          startInsertTracking(vimState, {
+            type: 'operator-linewise',
+            key: 'cc',
+            count,
+            operator: 'c',
+          })
           return true
         }
       }
@@ -1169,7 +1231,11 @@ export function handleKeyDown(
       vimState.mode = 'insert'
       clearPendingState(vimState)
       view.dispatch(state.tr) // Trigger view update for mode change
-      startInsertTracking(vimState, { type: 'insert-command', key: 'i', count: 1 })
+      startInsertTracking(vimState, {
+        type: 'insert-command',
+        key: 'i',
+        count: 1,
+      })
       return true
     }
     case 'I': {
@@ -1177,7 +1243,11 @@ export function handleKeyDown(
       const fnbPos = firstNonBlank(state)
       view.dispatch(moveCursor(state, fnbPos))
       clearPendingState(vimState)
-      startInsertTracking(vimState, { type: 'insert-command', key: 'I', count: 1 })
+      startInsertTracking(vimState, {
+        type: 'insert-command',
+        key: 'I',
+        count: 1,
+      })
       return true
     }
     case 'a': {
@@ -1186,7 +1256,11 @@ export function handleKeyDown(
       const newPos = Math.min(pos + 1, lineEndAt(state, pos))
       view.dispatch(moveCursor(state, newPos))
       clearPendingState(vimState)
-      startInsertTracking(vimState, { type: 'insert-command', key: 'a', count: 1 })
+      startInsertTracking(vimState, {
+        type: 'insert-command',
+        key: 'a',
+        count: 1,
+      })
       return true
     }
     case 'A': {
@@ -1194,7 +1268,11 @@ export function handleKeyDown(
       const endPos = lineEndAt(state, pos)
       view.dispatch(moveCursor(state, endPos))
       clearPendingState(vimState)
-      startInsertTracking(vimState, { type: 'insert-command', key: 'A', count: 1 })
+      startInsertTracking(vimState, {
+        type: 'insert-command',
+        key: 'A',
+        count: 1,
+      })
       return true
     }
     case 'v': {
@@ -1272,7 +1350,11 @@ export function handleKeyDown(
         vimState.mode = 'insert'
       }
       clearPendingState(vimState)
-      startInsertTracking(vimState, { type: 'insert-command', key: 'C', count: 1 })
+      startInsertTracking(vimState, {
+        type: 'insert-command',
+        key: 'C',
+        count: 1,
+      })
       return true
     }
 
@@ -1302,14 +1384,22 @@ export function handleKeyDown(
       const tr = openLineBelow(state, pos, vimState)
       view.dispatch(tr)
       clearPendingState(vimState)
-      startInsertTracking(vimState, { type: 'insert-command', key: 'o', count: 1 })
+      startInsertTracking(vimState, {
+        type: 'insert-command',
+        key: 'o',
+        count: 1,
+      })
       return true
     }
     case 'O': {
       const tr = openLineAbove(state, pos, vimState)
       view.dispatch(tr)
       clearPendingState(vimState)
-      startInsertTracking(vimState, { type: 'insert-command', key: 'O', count: 1 })
+      startInsertTracking(vimState, {
+        type: 'insert-command',
+        key: 'O',
+        count: 1,
+      })
       return true
     }
     case 'J': {
@@ -1433,9 +1523,13 @@ export function handleKeyDown(
     case 'n': {
       if (vimState.searchTerm) {
         vimState.searchHighlightsVisible = true
-        const matches = findAllMatches(state, vimState.searchTerm, vimState.searchWholeWord)
+        const matches = findAllMatches(
+          state,
+          vimState.searchTerm,
+          vimState.searchWholeWord,
+        )
         if (matches.length > 0) {
-          let idx = matches.findIndex(m => m > pos)
+          let idx = matches.findIndex((m) => m > pos)
           if (idx === -1) idx = 0 // wrap around
           vimState.statusMessage = `${idx + 1}/${matches.length}`
           view.dispatch(moveCursor(state, matches[idx]))
@@ -1451,11 +1545,18 @@ export function handleKeyDown(
     case 'N': {
       if (vimState.searchTerm) {
         vimState.searchHighlightsVisible = true
-        const matches = findAllMatches(state, vimState.searchTerm, vimState.searchWholeWord)
+        const matches = findAllMatches(
+          state,
+          vimState.searchTerm,
+          vimState.searchWholeWord,
+        )
         if (matches.length > 0) {
           let idx = -1
           for (let i = matches.length - 1; i >= 0; i--) {
-            if (matches[i] < pos) { idx = i; break }
+            if (matches[i] < pos) {
+              idx = i
+              break
+            }
           }
           if (idx === -1) idx = matches.length - 1 // wrap around
           vimState.statusMessage = `${idx + 1}/${matches.length}`
@@ -1477,7 +1578,7 @@ export function handleKeyDown(
         vimState.searchHighlightsVisible = true
         const matches = findAllMatches(state, word, true)
         if (matches.length > 0) {
-          let idx = matches.findIndex(m => m > pos)
+          let idx = matches.findIndex((m) => m > pos)
           if (idx === -1) idx = 0 // wrap around
           vimState.statusMessage = `${idx + 1}/${matches.length}`
           view.dispatch(moveCursor(state, matches[idx]))
