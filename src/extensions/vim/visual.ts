@@ -1,6 +1,6 @@
 import { EditorState, Transaction, TextSelection } from 'prosemirror-state'
 import { VimState } from './types'
-import { paragraphBounds } from './utils'
+import { lineBounds } from './utils'
 
 /**
  * Update the visual selection based on anchor and new head position.
@@ -34,9 +34,9 @@ export function updateVisualSelection(
       // leave as-is
     }
   } else if (vimState.mode === 'visual-line') {
-    // Linewise visual: select full paragraphs from anchor to head
-    const anchorBounds = paragraphBounds(state, anchor)
-    const headBounds = paragraphBounds(state, newHead)
+    // Linewise visual: select full lines from anchor to head
+    const anchorBounds = lineBounds(state, anchor)
+    const headBounds = lineBounds(state, newHead)
 
     const from = Math.min(anchorBounds.from, headBounds.from)
     const to = Math.max(anchorBounds.to, headBounds.to)

@@ -1,8 +1,11 @@
+import type { Node as ProseMirrorNode } from 'prosemirror-model'
+
 export type Mode = 'normal' | 'insert' | 'visual' | 'visual-line'
 
 export interface Register {
   text: string
   linewise: boolean
+  content: ProseMirrorNode[] | null
 }
 
 export interface VimState {
@@ -33,7 +36,7 @@ export function defaultVimState(): VimState {
     ggPending: false,
     visualAnchor: null,
     visualHead: null,
-    register: { text: '', linewise: false },
+    register: { text: '', linewise: false, content: null },
     goalColumn: null,
   }
 }

@@ -1,4 +1,4 @@
-import { EditorState } from 'prosemirror-state'
+import { EditorState, Selection } from 'prosemirror-state'
 import {
   lineStart,
   lineEnd,
@@ -12,18 +12,49 @@ import {
 } from './utils'
 
 /**
+ * Find the next valid text cursor position searching forward from pos.
+ */
+function findNextTextPos(state: EditorState, pos: number): number | null {
+  try {
+    const $pos = state.doc.resolve(Math.min(pos, state.doc.content.size))
+    const sel = Selection.findFrom($pos, 1, true)
+    return sel ? sel.$from.pos : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Find the previous valid text cursor position searching backward from pos.
+ */
+function findPrevTextPos(state: EditorState, pos: number): number | null {
+  try {
+    const $pos = state.doc.resolve(Math.max(pos, 0))
+    const sel = Selection.findFrom($pos, -1, true)
+    return sel ? sel.$from.pos : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Move left by one character; wraps to end of previous line at line start.
  */
 export function motionLeft(state: EditorState, pos: number): number {
-  const start = lineStartAt(state, pos)
-  if (pos > start) return pos - 1
-  // At line start, wrap to end of previous line
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) return pos
+
+  const start = lineStartAt(state, pos)
+  if (pos > start) return pos - 1
+
+  // At line start, find the end of the previous textblock
   try {
-    const before = $pos.before($pos.depth)
-    if (before <= 0) return pos
-    const $prev = state.doc.resolve(before - 1)
+    const beforeTextblock = $pos.before($pos.depth)
+    if (beforeTextblock <= 0) return pos
+    const $before = state.doc.resolve(beforeTextblock)
+    const prevSel = Selection.findFrom($before, -1, true)
+    if (!prevSel) return pos
+    const $prev = prevSel.$from
     return $prev.end($prev.depth)
   } catch {
     return pos
@@ -34,15 +65,20 @@ export function motionLeft(state: EditorState, pos: number): number {
  * Move right by one character; wraps to start of next line at line end.
  */
 export function motionRight(state: EditorState, pos: number): number {
-  const end = lineEndAt(state, pos)
-  if (pos < end) return pos + 1
-  // At line end, wrap to start of next line
   const $pos = state.doc.resolve(pos)
   if ($pos.depth === 0) return pos
+
+  const end = lineEndAt(state, pos)
+  if (pos < end) return pos + 1
+
+  // At line end, find the start of the next textblock
   try {
-    const after = $pos.after($pos.depth)
-    if (after >= state.doc.content.size) return pos
-    const $next = state.doc.resolve(after + 1)
+    const afterTextblock = $pos.after($pos.depth)
+    if (afterTextblock >= state.doc.content.size) return pos
+    const $after = state.doc.resolve(afterTextblock)
+    const nextSel = Selection.findFrom($after, 1, true)
+    if (!nextSel) return pos
+    const $next = nextSel.$from
     return $next.start($next.depth)
   } catch {
     return pos
@@ -51,23 +87,30 @@ export function motionRight(state: EditorState, pos: number): number {
 
 /**
  * Move down by one line, trying to preserve column offset.
+ * Uses Selection.findFrom to correctly traverse nested structures
+ * (lists, blockquotes, etc.) and skip leaf nodes (hr).
  */
 export function motionDown(state: EditorState, pos: number, goalColumn?: number): number {
   const $pos = state.doc.resolve(pos)
-  if ($pos.depth === 0) return pos
+  if ($pos.depth === 0) {
+    // At document root, try to find a textblock forward
+    const next = findNextTextPos(state, pos)
+    return next ?? pos
+  }
 
   const currentLineStart = $pos.start($pos.depth)
   const currentOffset = goalColumn !== undefined ? goalColumn : (pos - currentLineStart)
 
-  // Find the next paragraph node
-  const currentNodeEnd = $pos.after($pos.depth)
-  if (currentNodeEnd >= state.doc.content.size) return pos
-
-  const nextPos = Math.min(currentNodeEnd + 1, state.doc.content.size)
-  if (nextPos >= state.doc.content.size) return pos
-
+  // Find the next textblock after the current one
   try {
-    const $next = state.doc.resolve(nextPos)
+    const afterTextblock = $pos.after($pos.depth)
+    if (afterTextblock >= state.doc.content.size) return pos
+
+    const $after = state.doc.resolve(afterTextblock)
+    const nextSel = Selection.findFrom($after, 1, true)
+    if (!nextSel) return pos
+
+    const $next = nextSel.$from
     const nextLineStart = $next.start($next.depth)
     const nextLineEnd = $next.end($next.depth)
     const nextLineLen = nextLineEnd - nextLineStart
@@ -79,23 +122,28 @@ export function motionDown(state: EditorState, pos: number, goalColumn?: number)
 
 /**
  * Move up by one line, trying to preserve column offset.
+ * Uses Selection.findFrom to correctly traverse nested structures.
  */
 export function motionUp(state: EditorState, pos: number, goalColumn?: number): number {
   const $pos = state.doc.resolve(pos)
-  if ($pos.depth === 0) return pos
+  if ($pos.depth === 0) {
+    const prev = findPrevTextPos(state, pos)
+    return prev ?? pos
+  }
 
   const currentLineStart = $pos.start($pos.depth)
   const currentOffset = goalColumn !== undefined ? goalColumn : (pos - currentLineStart)
 
-  // Find the previous paragraph node
-  const currentNodeStart = $pos.before($pos.depth)
-  if (currentNodeStart <= 0) return pos
-
-  const prevPos = currentNodeStart - 1
-  if (prevPos < 0) return pos
-
+  // Find the previous textblock before the current one
   try {
-    const $prev = state.doc.resolve(prevPos)
+    const beforeTextblock = $pos.before($pos.depth)
+    if (beforeTextblock <= 0) return pos
+
+    const $before = state.doc.resolve(beforeTextblock)
+    const prevSel = Selection.findFrom($before, -1, true)
+    if (!prevSel) return pos
+
+    const $prev = prevSel.$from
     const prevLineStart = $prev.start($prev.depth)
     const prevLineEnd = $prev.end($prev.depth)
     const prevLineLen = prevLineEnd - prevLineStart
@@ -167,27 +215,53 @@ export function motionDocEnd(state: EditorState): number {
 }
 
 /**
+ * Helper: cross to the start of the next textblock from after the current one.
+ */
+function crossToNextTextblock(state: EditorState, $pos: ReturnType<typeof state.doc.resolve>): number | null {
+  try {
+    const afterNode = $pos.after($pos.depth)
+    if (afterNode >= state.doc.content.size) return null
+    const $after = state.doc.resolve(afterNode)
+    const nextSel = Selection.findFrom($after, 1, true)
+    if (!nextSel) return null
+    return nextSel.$from.start(nextSel.$from.depth)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Helper: cross to the end of the previous textblock from before the current one.
+ */
+function crossToPrevTextblock(state: EditorState, $pos: ReturnType<typeof state.doc.resolve>): number | null {
+  try {
+    const beforeNode = $pos.before($pos.depth)
+    if (beforeNode <= 0) return null
+    const $before = state.doc.resolve(beforeNode)
+    const prevSel = Selection.findFrom($before, -1, true)
+    if (!prevSel) return null
+    return prevSel.$from.end(prevSel.$from.depth)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Move forward by one word.
  */
 export function motionWordForward(state: EditorState, pos: number): number {
   const docSize = state.doc.content.size
-
-  // First check if we're at the end of a paragraph and need to cross to next
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) {
+    const next = findNextTextPos(state, pos)
+    return next ?? pos
+  }
+
   const lineEndPos = $pos.end($pos.depth)
 
+  // First check if we're at the end of a line and need to cross to next
   if (pos >= lineEndPos) {
-    // We're at the end of the line, try to go to next paragraph
-    const afterNode = $pos.after($pos.depth)
-    if (afterNode >= docSize) return pos
-    const nextPos = afterNode + 1
-    if (nextPos >= docSize) return pos
-    try {
-      const $next = state.doc.resolve(nextPos)
-      return $next.start($next.depth)
-    } catch {
-      return pos
-    }
+    return crossToNextTextblock(state, $pos) ?? pos
   }
 
   // Walk through text to find next word boundary
@@ -220,17 +294,8 @@ export function motionWordForward(state: EditorState, pos: number): number {
   }
 
   if (current >= lineEndPos) {
-    // Move to next paragraph start (empty lines are word stops)
-    const afterNode = $pos.after($pos.depth)
-    if (afterNode >= docSize) return lineEndPos
-    const nextPos = afterNode + 1
-    if (nextPos >= docSize) return lineEndPos
-    try {
-      const $next = state.doc.resolve(nextPos)
-      return $next.start($next.depth)
-    } catch {
-      return lineEndPos
-    }
+    // Move to next textblock start
+    return crossToNextTextblock(state, $pos) ?? lineEndPos
   }
 
   return current
@@ -241,20 +306,16 @@ export function motionWordForward(state: EditorState, pos: number): number {
  */
 export function motionWordBackward(state: EditorState, pos: number): number {
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) {
+    const prev = findPrevTextPos(state, pos)
+    return prev ?? pos
+  }
+
   const lineStartPos = $pos.start($pos.depth)
 
   if (pos <= lineStartPos) {
-    // We're at the start of the line, try to go to previous paragraph
-    const beforeNode = $pos.before($pos.depth)
-    if (beforeNode <= 0) return pos
-    const prevPos = beforeNode - 1
-    if (prevPos < 0) return pos
-    try {
-      const $prev = state.doc.resolve(prevPos)
-      return $prev.end($prev.depth)
-    } catch {
-      return pos
-    }
+    // We're at the start of the line, cross to end of previous textblock
+    return crossToPrevTextblock(state, $pos) ?? pos
   }
 
   let current = pos - 1
@@ -288,6 +349,7 @@ export function motionWordBackward(state: EditorState, pos: number): number {
  */
 export function motionFindCharForward(state: EditorState, pos: number, char: string): number | null {
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return null
   const end = $pos.end($pos.depth)
   for (let i = pos + 1; i <= end; i++) {
     if (charAt(state, i) === char) {
@@ -302,6 +364,7 @@ export function motionFindCharForward(state: EditorState, pos: number, char: str
  */
 export function motionFindCharBackward(state: EditorState, pos: number, char: string): number | null {
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return null
   const start = $pos.start($pos.depth)
   for (let i = pos - 1; i >= start; i--) {
     if (charAt(state, i) === char) {

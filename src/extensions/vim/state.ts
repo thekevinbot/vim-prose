@@ -1,4 +1,4 @@
-import { Plugin, PluginKey, EditorState } from 'prosemirror-state'
+import { Plugin, PluginKey, EditorState, Selection } from 'prosemirror-state'
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view'
 import { VimState, VimEditorCommands, defaultVimState } from './types'
 import { handleKeyDown } from './keyHandler'
@@ -62,7 +62,12 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
         // Block cursor
         const cursorPos = vimState.visualHead ?? state.selection.$head.pos
         try {
-          const $pos = state.doc.resolve(cursorPos)
+          let $pos = state.doc.resolve(cursorPos)
+          // If at document root (depth 0), find nearest textblock
+          if ($pos.depth === 0) {
+            const sel = Selection.findFrom($pos, 1, true) || Selection.findFrom($pos, -1, true)
+            if (sel) $pos = sel.$from
+          }
           if ($pos.depth > 0) {
             const lineEnd = $pos.end($pos.depth)
             if (cursorPos < lineEnd) {

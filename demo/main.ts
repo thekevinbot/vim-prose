@@ -10,10 +10,28 @@ const editor = new Editor({
     VimMode,
   ],
   content: `
-    <p>Welcome to vim-prose — a Vim mode for rich-text editing.</p>
-    <p>You're currently in normal mode. Press <strong>i</strong> to start typing, or try motions like <strong>w</strong>, <strong>b</strong>, <strong>j</strong>, <strong>k</strong> to move around.</p>
-    <p>This editor supports operators too: try <strong>dw</strong> to delete a word, <strong>dd</strong> to delete a line, or <strong>yy</strong> then <strong>p</strong> to copy and paste a paragraph.</p>
-    <p>Press <strong>v</strong> for visual selection, <strong>V</strong> for line selection, and <strong>Esc</strong> to return to normal mode. Happy editing!</p>
+    <h2>Welcome to vim-prose</h2>
+    <p>A Vim mode for rich-text editing with ProseMirror and Tiptap. Navigate through this document using vim motions — the cursor moves smoothly through headings, lists, blockquotes, and horizontal rules.</p>
+    <h3>Getting Started</h3>
+    <ol>
+      <li>Press <strong>i</strong> to enter insert mode and start typing</li>
+      <li>Press <strong>Esc</strong> to return to normal mode</li>
+      <li>Use <strong>j</strong> and <strong>k</strong> to navigate between lines</li>
+      <li>Try <strong>w</strong> and <strong>b</strong> to move by word</li>
+    </ol>
+    <blockquote><p>The best way to predict the future is to invent it. — Alan Kay</p></blockquote>
+    <h3>Operators</h3>
+    <p>Combine operators with motions for powerful editing:</p>
+    <ul>
+      <li><strong>dw</strong> — delete a word</li>
+      <li><strong>dd</strong> — delete a line</li>
+      <li><strong>yy</strong> then <strong>p</strong> — yank and paste a line</li>
+      <li><strong>ciw</strong> — change inner word</li>
+    </ul>
+    <hr>
+    <h3>Visual Mode</h3>
+    <p>Press <strong>v</strong> for character-wise visual selection, or <strong>V</strong> for line selection. You can also click and drag to create a visual selection with the mouse.</p>
+    <p>Use <strong>d</strong>, <strong>c</strong>, or <strong>y</strong> on a visual selection to delete, change, or yank the selected text.</p>
   `,
 })
 

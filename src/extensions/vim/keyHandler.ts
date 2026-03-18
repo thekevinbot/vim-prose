@@ -1,4 +1,4 @@
-import { EditorState, Transaction, TextSelection } from 'prosemirror-state'
+import { EditorState, Transaction, TextSelection, Selection } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
 import { VimState, VimEditorCommands } from './types'
 import {
@@ -40,7 +40,7 @@ import {
   joinLines,
 } from './commands'
 import { updateVisualSelection, getVisualRange } from './visual'
-import { lineStartAt, lineEndAt, paragraphBounds, firstNonBlank } from './utils'
+import { lineStartAt, lineEndAt, firstNonBlank } from './utils'
 
 function clearPendingState(vimState: VimState) {
   vimState.count = null
@@ -62,7 +62,7 @@ function applyMotionNTimes(
   state: EditorState,
   pos: number,
   count: number,
-  motionFn: (state: EditorState, pos: number) => number
+  motionFn: (state: EditorState, pos: number) => number,
 ): number {
   let current = pos
   for (let i = 0; i < count; i++) {
@@ -100,7 +100,7 @@ function handleOperatorMotion(
   vimState: VimState,
   from: number,
   to: number,
-  linewise: boolean = false
+  linewise: boolean = false,
 ): Transaction | null {
   const op = vimState.operator
   if (!op) return null
@@ -139,21 +139,28 @@ function resolveMotionKey(
   key: string,
   count: number,
   ctrlKey: boolean,
-  goalColumn?: number
+  goalColumn?: number,
 ): number | null {
   if (ctrlKey) {
     switch (key) {
-      case 'd': return motionHalfPageDown(state, pos)
-      case 'u': return motionHalfPageUp(state, pos)
-      case 'f': return motionFullPageDown(state, pos)
-      case 'b': return motionFullPageUp(state, pos)
-      default: return null
+      case 'd':
+        return motionHalfPageDown(state, pos)
+      case 'u':
+        return motionHalfPageUp(state, pos)
+      case 'f':
+        return motionFullPageDown(state, pos)
+      case 'b':
+        return motionFullPageUp(state, pos)
+      default:
+        return null
     }
   }
 
   switch (key) {
-    case 'h': return applyMotionNTimes(state, pos, count, motionLeft)
-    case 'l': return applyMotionNTimes(state, pos, count, motionRight)
+    case 'h':
+      return applyMotionNTimes(state, pos, count, motionLeft)
+    case 'l':
+      return applyMotionNTimes(state, pos, count, motionRight)
     case 'j': {
       let current = pos
       for (let i = 0; i < count; i++) {
@@ -168,13 +175,20 @@ function resolveMotionKey(
       }
       return current
     }
-    case '0': return motionLineStart(state, pos)
-    case '^': return motionFirstNonBlank(state)
-    case '$': return motionLineEnd(state, pos)
-    case 'G': return motionDocEnd(state)
-    case 'w': return applyMotionNTimes(state, pos, count, motionWordForward)
-    case 'b': return applyMotionNTimes(state, pos, count, motionWordBackward)
-    default: return null
+    case '0':
+      return motionLineStart(state, pos)
+    case '^':
+      return motionFirstNonBlank(state)
+    case '$':
+      return motionLineEnd(state, pos)
+    case 'G':
+      return motionDocEnd(state)
+    case 'w':
+      return applyMotionNTimes(state, pos, count, motionWordForward)
+    case 'b':
+      return applyMotionNTimes(state, pos, count, motionWordBackward)
+    default:
+      return null
   }
 }
 
@@ -185,15 +199,18 @@ export function handleKeyDown(
   view: EditorView,
   event: KeyboardEvent,
   vimState: VimState,
-  commands: VimEditorCommands
+  commands: VimEditorCommands,
 ): boolean {
   const state = view.state
   // In visual modes, use the tracked visual head (not $head.pos which is the exclusive selection end)
-  const pos = (vimState.mode === 'visual' || vimState.mode === 'visual-line') && vimState.visualHead !== null
-    ? vimState.visualHead
-    : state.selection.$head.pos
+  const pos =
+    (vimState.mode === 'visual' || vimState.mode === 'visual-line') &&
+    vimState.visualHead !== null
+      ? vimState.visualHead
+      : state.selection.$head.pos
   const key = event.key
-  const ctrlKey = event.ctrlKey || event.metaKey
+  // const ctrlKey = event.ctrlKey || event.metaKey
+  const ctrlKey = event.ctrlKey
 
   // ── INSERT MODE ──
   if (vimState.mode === 'insert') {
@@ -228,7 +245,12 @@ export function handleKeyDown(
   // ── TEXT OBJECT RESOLUTION (when operator + i/a is pending) ──
   if ((vimState as any)._textObjectType) {
     // Ignore modifier-only keys — wait for the actual character
-    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+    if (
+      key === 'Shift' ||
+      key === 'Control' ||
+      key === 'Alt' ||
+      key === 'Meta'
+    ) {
       return true
     }
 
@@ -244,12 +266,22 @@ export function handleKeyDown(
     const result = resolveTextObject(state, pos, objectType, key)
     if (result) {
       if (vimState.operator) {
-        const tr = handleOperatorMotion(state, vimState, result.from, result.to, false)
+        const tr = handleOperatorMotion(
+          state,
+          vimState,
+          result.from,
+          result.to,
+          false,
+        )
         if (tr) view.dispatch(tr)
         clearPendingState(vimState)
-      } else if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
+      } else if (
+        vimState.mode === 'visual' ||
+        vimState.mode === 'visual-line'
+      ) {
         vimState.visualAnchor = result.from
-        vimState.visualHead = result.to > result.from ? result.to - 1 : result.from
+        vimState.visualHead =
+          result.to > result.from ? result.to - 1 : result.from
         const tr = state.tr
         try {
           tr.setSelection(TextSelection.create(tr.doc, result.from, result.to))
@@ -267,7 +299,12 @@ export function handleKeyDown(
   // ── FIND PENDING (waiting for char after f/F/t/T) ──
   if (vimState.findPending) {
     // Ignore modifier-only keys — wait for the actual character
-    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+    if (
+      key === 'Shift' ||
+      key === 'Control' ||
+      key === 'Alt' ||
+      key === 'Meta'
+    ) {
       return true
     }
 
@@ -283,10 +320,18 @@ export function handleKeyDown(
       const searchFrom = targetPos ?? pos
       let result: number | null = null
       switch (vimState.findMotion) {
-        case 'f': result = motionFindCharForward(state, searchFrom, key); break
-        case 'F': result = motionFindCharBackward(state, searchFrom, key); break
-        case 't': result = motionTillCharForward(state, searchFrom, key); break
-        case 'T': result = motionTillCharBackward(state, searchFrom, key); break
+        case 'f':
+          result = motionFindCharForward(state, searchFrom, key)
+          break
+        case 'F':
+          result = motionFindCharBackward(state, searchFrom, key)
+          break
+        case 't':
+          result = motionTillCharForward(state, searchFrom, key)
+          break
+        case 'T':
+          result = motionTillCharBackward(state, searchFrom, key)
+          break
       }
       if (result === null) break
       targetPos = result
@@ -305,9 +350,18 @@ export function handleKeyDown(
           rangeTo = pos
         }
 
-        const tr = handleOperatorMotion(state, vimState, rangeFrom, rangeTo, false)
+        const tr = handleOperatorMotion(
+          state,
+          vimState,
+          rangeFrom,
+          rangeTo,
+          false,
+        )
         if (tr) view.dispatch(tr)
-      } else if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
+      } else if (
+        vimState.mode === 'visual' ||
+        vimState.mode === 'visual-line'
+      ) {
         const tr = state.tr
         updateVisualSelection(state, tr, vimState, targetPos)
         vimState.visualHead = targetPos
@@ -344,7 +398,10 @@ export function handleKeyDown(
       if (vimState.operator) {
         const tr = handleOperatorMotion(state, vimState, pos, targetPos, false)
         if (tr) view.dispatch(tr)
-      } else if (vimState.mode === 'visual' || vimState.mode === 'visual-line') {
+      } else if (
+        vimState.mode === 'visual' ||
+        vimState.mode === 'visual-line'
+      ) {
         const tr = state.tr
         updateVisualSelection(state, tr, vimState, targetPos)
         vimState.visualHead = targetPos
@@ -360,7 +417,12 @@ export function handleKeyDown(
   }
 
   // ── OPERATOR PENDING or VISUAL: i/a starts text object ──
-  if ((vimState.operator || vimState.mode === 'visual' || vimState.mode === 'visual-line') && (key === 'i' || key === 'a')) {
+  if (
+    (vimState.operator ||
+      vimState.mode === 'visual' ||
+      vimState.mode === 'visual-line') &&
+    (key === 'i' || key === 'a')
+  ) {
     ;(vimState as any)._textObjectType = key as 'i' | 'a'
     return true
   }
@@ -447,13 +509,16 @@ export function handleKeyDown(
         vimState.mode = 'normal'
         vimState.visualAnchor = null
         vimState.visualHead = null
-        // Position cursor at start of yanked range, resolving to text position for linewise
+        // Position cursor at start of yanked range, using Selection.findFrom for robustness
         let cursorPos = range ? range.from : pos
-        if (range?.linewise && range.from < state.doc.content.size) {
+        if (range) {
           try {
-            const $p = state.doc.resolve(range.from + 1)
-            cursorPos = $p.start($p.depth)
-          } catch { /* keep cursorPos */ }
+            const $from = state.doc.resolve(range.from)
+            const sel = Selection.findFrom($from, 1, true)
+            if (sel) cursorPos = sel.$from.pos
+          } catch {
+            /* keep cursorPos */
+          }
         }
         view.dispatch(moveCursor(state, cursorPos))
         clearPendingState(vimState)
@@ -463,7 +528,13 @@ export function handleKeyDown(
       case 'x': {
         const range = getVisualRange(state, vimState)
         if (range) {
-          const tr = executeDelete(state, range.from, range.to, vimState, range.linewise)
+          const tr = executeDelete(
+            state,
+            range.from,
+            range.to,
+            vimState,
+            range.linewise,
+          )
           vimState.mode = 'normal'
           vimState.visualAnchor = null
           vimState.visualHead = null
@@ -476,7 +547,13 @@ export function handleKeyDown(
       case 'c': {
         const range = getVisualRange(state, vimState)
         if (range) {
-          const tr = executeChange(state, range.from, range.to, vimState, range.linewise)
+          const tr = executeChange(
+            state,
+            range.from,
+            range.to,
+            vimState,
+            range.linewise,
+          )
           vimState.visualAnchor = null
           vimState.visualHead = null
           clearPendingState(vimState)
@@ -492,11 +569,21 @@ export function handleKeyDown(
             try {
               const $pos = state.doc.resolve(pos)
               vimState.goalColumn = pos - $pos.start($pos.depth)
-            } catch { vimState.goalColumn = 0 }
+            } catch {
+              vimState.goalColumn = 0
+            }
           }
         }
-        const savedGoal = (key === 'j' || key === 'k') ? vimState.goalColumn : null
-        const targetPos = resolveMotionKey(state, pos, key, count, false, vimState.goalColumn ?? undefined)
+        const savedGoal =
+          key === 'j' || key === 'k' ? vimState.goalColumn : null
+        const targetPos = resolveMotionKey(
+          state,
+          pos,
+          key,
+          count,
+          false,
+          vimState.goalColumn ?? undefined,
+        )
         if (targetPos !== null) {
           const tr = state.tr
           updateVisualSelection(state, tr, vimState, targetPos)
@@ -559,10 +646,19 @@ export function handleKeyDown(
         try {
           const $pos = state.doc.resolve(pos)
           vimState.goalColumn = pos - $pos.start($pos.depth)
-        } catch { vimState.goalColumn = 0 }
+        } catch {
+          vimState.goalColumn = 0
+        }
       }
     }
-    const targetPos = resolveMotionKey(state, pos, key, count, false, vimState.goalColumn ?? undefined)
+    const targetPos = resolveMotionKey(
+      state,
+      pos,
+      key,
+      count,
+      false,
+      vimState.goalColumn ?? undefined,
+    )
     if (targetPos !== null) {
       let from = pos
       let to = targetPos
@@ -638,7 +734,13 @@ export function handleKeyDown(
       // Set initial selection (single character)
       const tr = state.tr
       try {
-        tr.setSelection(TextSelection.create(tr.doc, pos, Math.min(pos + 1, state.doc.content.size)))
+        tr.setSelection(
+          TextSelection.create(
+            tr.doc,
+            pos,
+            Math.min(pos + 1, state.doc.content.size),
+          ),
+        )
       } catch {
         // leave as-is
       }
@@ -755,10 +857,19 @@ export function handleKeyDown(
         try {
           const $pos = state.doc.resolve(pos)
           vimState.goalColumn = pos - $pos.start($pos.depth)
-        } catch { vimState.goalColumn = 0 }
+        } catch {
+          vimState.goalColumn = 0
+        }
       }
       const savedGoal = vimState.goalColumn
-      const targetPos = resolveMotionKey(state, pos, key, count, false, savedGoal)
+      const targetPos = resolveMotionKey(
+        state,
+        pos,
+        key,
+        count,
+        false,
+        savedGoal,
+      )
       if (targetPos !== null) {
         view.dispatch(moveCursor(state, targetPos))
       }

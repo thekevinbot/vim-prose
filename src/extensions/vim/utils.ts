@@ -21,11 +21,13 @@ export function lineEnd(state: EditorState): number {
  */
 export function lineStartAt(state: EditorState, pos: number): number {
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return pos
   return $pos.start($pos.depth)
 }
 
 export function lineEndAt(state: EditorState, pos: number): number {
   const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) return pos
   return $pos.end($pos.depth)
 }
 
@@ -114,4 +116,39 @@ export function paragraphBounds(state: EditorState, pos: number): { from: number
   const start = $pos.before(depth)
   const end = $pos.after(depth)
   return { from: start, to: end }
+}
+
+/**
+ * Find the "line-level" node boundaries for linewise operations (dd, yy, V, etc.).
+ * For text inside a list item with a single child, returns the list item bounds.
+ * Otherwise returns the textblock bounds (same as paragraphBounds).
+ */
+export function lineBounds(state: EditorState, pos: number): { from: number; to: number } {
+  let $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) {
+    if (pos < state.doc.content.size) {
+      $pos = state.doc.resolve(pos + 1)
+    } else if (pos > 0) {
+      $pos = state.doc.resolve(pos - 1)
+    } else {
+      return { from: 0, to: state.doc.content.size }
+    }
+  }
+
+  let depth = $pos.depth
+
+  // Walk up through ancestors looking for a list item
+  for (let d = $pos.depth - 1; d >= 1; d--) {
+    const node = $pos.node(d)
+    const name = node.type.name
+    if (name === 'listItem' || name === 'list_item') {
+      // Use list item bounds if it has only one child (the common case)
+      if (node.childCount === 1) {
+        depth = d
+      }
+      break
+    }
+  }
+
+  return { from: $pos.before(depth), to: $pos.after(depth) }
 }
