@@ -1,6 +1,6 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { VimMode, getVimMode } from '../src/extensions/vim/tiptap'
+import { VimMode, getVimMode, getVimStatus } from '../src/extensions/vim/tiptap'
 import '../src/extensions/vim/vim-mode.css'
 
 const editor = new Editor({
@@ -49,7 +49,8 @@ function updateModeDisplay() {
   const mode = getVimMode(editor)
   badge.textContent = mode === 'visual-line' ? 'V-Line' : mode.charAt(0).toUpperCase() + mode.slice(1)
   badge.className = mode
-  hint.textContent = modeHints[mode] ?? ''
+  const status = getVimStatus(editor)
+  hint.textContent = status || (modeHints[mode] ?? '')
 }
 
 // Update mode display on every transaction (mode changes always dispatch a transaction now)

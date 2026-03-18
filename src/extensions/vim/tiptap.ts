@@ -22,6 +22,20 @@ export const VimMode = Extension.create({
       createVimPlugin({
         undo: () => editor.commands.undo(),
         redo: () => editor.commands.redo(),
+        indent: () => {
+          try {
+            return editor.commands.sinkListItem('listItem')
+          } catch {
+            return false
+          }
+        },
+        outdent: () => {
+          try {
+            return editor.commands.liftListItem('listItem')
+          } catch {
+            return false
+          }
+        },
       }),
     ]
   },
@@ -30,6 +44,11 @@ export const VimMode = Extension.create({
 export function getVimMode(editor: any): Mode {
   const state = vimPluginKey.getState(editor.state) as VimState | undefined
   return state?.mode ?? 'normal'
+}
+
+export function getVimStatus(editor: any): string {
+  const state = vimPluginKey.getState(editor.state) as VimState | undefined
+  return state?.statusMessage ?? ''
 }
 
 export type { VimState, Mode }

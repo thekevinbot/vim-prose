@@ -35,3 +35,45 @@
 .vim-mode-visual-line ::selection {
   background: transparent;
 }
+
+/* Search bar */
+.vim-search-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: #f8f8f8;
+  border-top: 1px solid #e0e0e0;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  font-size: 14px;
+  min-height: 28px;
+}
+
+.vim-search-prefix {
+  color: #666;
+  margin-right: 2px;
+}
+
+.vim-search-input {
+  color: #333;
+  white-space: pre;
+}
+
+.vim-search-cursor {
+  color: #333;
+  animation: vim-cursor-blink 1s step-end infinite;
+}
+
+@keyframes vim-cursor-blink {
+  50% { opacity: 0; }
+}
+
+/* Search match highlights */
+.vim-search-match {
+  background: rgba(255, 200, 0, 0.4);
+  border-radius: 1px;
+}
+
+.vim-search-match-current {
+  background: rgba(255, 140, 0, 0.5);
+  border-radius: 1px;
+}

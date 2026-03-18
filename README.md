@@ -30,12 +30,13 @@ const editor = new Editor({
 })
 ```
 
-Read the current mode (e.g. to render a status bar):
+Read the current mode and status (e.g. to render a status bar):
 
 ```typescript
-import { getVimMode } from 'vim-prose/tiptap'
+import { getVimMode, getVimStatus } from 'vim-prose/tiptap'
 
 const mode = getVimMode(editor) // 'normal' | 'insert' | 'visual' | 'visual-line'
+const status = getVimStatus(editor) // e.g. '3/14', 'mark a set', ''
 ```
 
 ### With ProseMirror directly
@@ -48,6 +49,8 @@ import { history, undo, redo } from 'prosemirror-history'
 const vimPlugin = createVimPlugin({
   undo: () => undo(view.state, view.dispatch),
   redo: () => redo(view.state, view.dispatch),
+  indent: () => { /* your indent logic */ return true },
+  outdent: () => { /* your outdent logic */ return true },
 })
 
 const state = EditorState.create({
@@ -162,6 +165,8 @@ Used with operators (`d`, `y`, `c`) or in visual mode.
 | `o` | Open new line below, enter insert mode |
 | `O` | Open new line above, enter insert mode |
 | `J` | Join current line with the next line |
+| `>>` | Indent current line (list item sink) |
+| `<<` | Outdent current line (list item lift) |
 
 ### Undo / Redo
 
@@ -169,6 +174,54 @@ Used with operators (`d`, `y`, `c`) or in visual mode.
 |-----|--------|
 | `u` | Undo |
 | `Ctrl-r` | Redo |
+
+### Search
+
+| Key | Action |
+|-----|--------|
+| `/` | Open search bar, type query, press Enter to search |
+| `n` | Jump to next search match (wraps around) |
+| `N` | Jump to previous search match (wraps around) |
+| `*` | Search for the word under cursor (whole-word match) |
+
+The search bar appears below the editor with incremental highlighting as you type. All matches are highlighted in yellow, with the current match in orange. The status line shows the current result index (e.g. `3/14`).
+
+After `*`, `n` and `N` continue navigating with whole-word matching.
+
+### Marks
+
+| Key | Action |
+|-----|--------|
+| `m{char}` | Set mark at current cursor position (`a`-`z`, `A`-`Z`, `0`-`9`) |
+| `'{char}` | Jump to mark position |
+
+Mark positions are automatically updated through document changes. Jumping to a mark centers the cursor in the editor. Works with operators (e.g. `d'a` deletes to mark `a`).
+
+The status line shows feedback: `mark a set`, `mark a`, `mark x not set`.
+
+### Dot Repeat
+
+| Key | Action |
+|-----|--------|
+| `.` | Repeat last document-changing action |
+
+Repeatable actions include:
+
+- Simple commands: `x`, `p`, `P`, `J`, `D`, `>>`, `<<`
+- Doubled operators: `dd`, `cc`
+- Operator + motion: `dw`, `cw`, `d$`, `df{char}`, etc.
+- Operator + text object: `diw`, `ci"`, etc.
+- Insert commands: `i`, `a`, `A`, `I`, `o`, `O`, `C` — replays typed text
+
+A count prefix overrides the stored count (e.g. `3x` then `2.` deletes 2 chars).
+
+### Scrolling
+
+| Key | Action |
+|-----|--------|
+| `zz` | Center cursor vertically within the editor |
+
+Centering only scrolls the editor's own container — it never scrolls the surrounding page.
 
 ### Count Prefix
 
@@ -179,11 +232,22 @@ All motions, operators, and find/till commands accept a numeric count prefix.
 2dd    → delete 2 lines
 3fa    → jump to the 3rd 'a' to the right
 2j     → move down 2 lines
+3>>    → indent 3 times
 ```
 
 ### Register
 
 A single unnamed register stores the most recent yank or delete. Deletes from `d`/`x`/`c` and yanks from `y` all write to it. The register carries a linewise flag: pasting a linewise register inserts full paragraphs rather than inline text.
+
+### Status Line
+
+The plugin exposes status messages via `getVimStatus(editor)` (Tiptap) or `vimState.statusMessage` (ProseMirror). Messages include:
+
+- Search result index: `3/14`
+- Mark set: `mark a set`
+- Mark jump: `mark a`
+- Mark not found: `mark x not set`
+- No results: `pattern not found`
 
 ---
 
@@ -193,3 +257,4 @@ A single unnamed register stores the most recent yank or delete. Deletes from `d
 - **No system clipboard** — the register is in-memory only; browser clipboard is not used.
 - **Single ProseMirror plugin** — all state lives in a `PluginKey` inside a single `Plugin`.
 - **Insert mode passthrough** — in insert mode, only `Esc`/`Ctrl-c` is intercepted; all other keys are passed through to ProseMirror's default input handling.
+- **Scroll containment** — centering (`zz`) and search navigation (`n`/`N`) only scroll the editor element, never the outer page.
