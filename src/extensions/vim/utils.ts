@@ -155,18 +155,21 @@ export function findAllMatches(
 ): number[] {
   if (!term) return []
   const positions: number[] = []
+  const searchTerm = term.toLocaleLowerCase()
 
   state.doc.descendants((node, pos) => {
     if (node.isText && node.text) {
+      const text = node.text
+      const textForSearch = text.toLocaleLowerCase()
       let idx = 0
       while (true) {
-        const found = node.text.indexOf(term, idx)
+        const found = textForSearch.indexOf(searchTerm, idx)
         if (found === -1) break
         if (wholeWord) {
-          const before = found > 0 ? node.text[found - 1] : ''
+          const before = found > 0 ? text[found - 1] : ''
           const after =
-            found + term.length < node.text.length
-              ? node.text[found + term.length]
+            found + term.length < text.length
+              ? text[found + term.length]
               : ''
           if ((before && isWordChar(before)) || (after && isWordChar(after))) {
             idx = found + 1

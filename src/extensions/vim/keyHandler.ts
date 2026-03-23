@@ -981,6 +981,9 @@ export function handleKeyDown(
         } else {
           // Switch from visual-line to characterwise visual
           vimState.mode = 'visual'
+          const tr = state.tr
+          updateVisualSelection(state, tr, vimState, pos)
+          view.dispatch(tr)
         }
         clearPendingState(vimState)
         return true

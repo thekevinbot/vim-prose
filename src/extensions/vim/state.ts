@@ -177,6 +177,27 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
                 class: 'vim-visual-selection',
               }),
             )
+
+            // Inline decorations won't visibly highlight empty textblocks, so
+            // add a block-level decoration for selected empty lines.
+            state.doc.nodesBetween(
+              state.selection.from,
+              state.selection.to,
+              (node, pos) => {
+                if (
+                  node.isTextblock &&
+                  node.content.size === 0 &&
+                  state.selection.from <= pos + node.nodeSize &&
+                  state.selection.to >= pos
+                ) {
+                  decorations.push(
+                    Decoration.node(pos, pos + node.nodeSize, {
+                      class: 'vim-visual-selection-line',
+                    }),
+                  )
+                }
+              },
+            )
           }
         }
 

@@ -30,6 +30,11 @@
   background: rgba(59, 130, 246, 0.3);
 }
 
+/* Empty selected lines need a node-level highlight. */
+.vim-visual-selection-line {
+  background: rgba(59, 130, 246, 0.3);
+}
+
 /* Suppress native selection in visual modes (we use decorations instead) */
 .vim-mode-visual ::selection,
 .vim-mode-visual-line ::selection {
