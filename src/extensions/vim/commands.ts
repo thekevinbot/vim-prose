@@ -4,15 +4,100 @@ import {
   TextSelection,
   Selection,
 } from 'prosemirror-state'
-import { Fragment, Node as ProseMirrorNode } from 'prosemirror-model'
+import { Node as ProseMirrorNode, ResolvedPos } from 'prosemirror-model'
 import { VimState } from './types'
+import { lineEndAt, paragraphBounds } from './utils'
 import {
-  lineEndAt,
-  lineStartAt,
-  paragraphBounds,
-  lineBounds,
-  charAt,
-} from './utils'
+  getLinewiseClipboardLines,
+  isLinewiseClipboardText,
+  writeSystemClipboardText,
+} from './clipboard'
+
+interface ListItemContext {
+  $pos: ResolvedPos
+  depth: number
+  node: ProseMirrorNode
+}
+
+function getListItemContext(state: EditorState, pos: number): ListItemContext | null {
+  let $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) {
+    if (pos < state.doc.content.size) {
+      $pos = state.doc.resolve(pos + 1)
+    } else if (pos > 0) {
+      $pos = state.doc.resolve(pos - 1)
+    } else {
+      return null
+    }
+  }
+
+  return findListItemAtDepth($pos)
+}
+
+function findListItemAtDepth($pos: ResolvedPos): ListItemContext | null {
+  for (let depth = $pos.depth; depth >= 1; depth--) {
+    const node = $pos.node(depth)
+    const name = node.type.name
+    if (
+      name === 'listItem' ||
+      name === 'list_item' ||
+      name === 'taskItem' ||
+      name === 'task_item'
+    ) {
+      return { $pos, depth, node }
+    }
+  }
+  return null
+}
+
+function setSelectionInsideInsertedNode(
+  tr: Transaction,
+  insertPos: number,
+): void {
+  try {
+    const $inside = tr.doc.resolve(insertPos + 1)
+    const selection = Selection.findFrom($inside, 1, true)
+    if (selection) {
+      tr.setSelection(selection)
+      return
+    }
+    tr.setSelection(TextSelection.create(tr.doc, insertPos + 1))
+  } catch {
+    // leave as-is
+  }
+}
+
+function repeatText(text: string, count: number): string {
+  return count > 1 ? text.repeat(count) : text
+}
+
+function insertLinewiseText(
+  state: EditorState,
+  insertPos: number,
+  clipboardText: string,
+  count: number,
+): Transaction {
+  const paragraphType = state.schema.nodes.paragraph
+  if (!paragraphType) return state.tr
+
+  const tr = state.tr
+  const lines = getLinewiseClipboardLines(clipboardText)
+  let currentInsertPos = insertPos
+
+  for (let i = 0; i < count; i++) {
+    for (const line of lines) {
+      const node = paragraphType.create(
+        null,
+        line ? state.schema.text(line) : undefined,
+      )
+      tr.insert(currentInsertPos, node)
+      currentInsertPos += node.nodeSize
+    }
+  }
+
+  setSelectionInsideInsertedNode(tr, insertPos)
+  return tr
+}
 
 /**
  * Delete character under cursor (x command).
@@ -20,7 +105,7 @@ import {
 export function deleteChar(
   state: EditorState,
   pos: number,
-  vimState: VimState,
+  _vimState: VimState,
   count: number = 1,
 ): Transaction {
   const lineE = lineEndAt(state, pos)
@@ -32,7 +117,7 @@ export function deleteChar(
   }
 
   const text = state.doc.textBetween(pos, to, '\n', '\n')
-  vimState.register = { text, linewise: false, content: null }
+  void writeSystemClipboardText(text, false)
 
   const tr = state.tr.delete(pos, to)
   const newPos = Math.min(pos, tr.doc.content.size)
@@ -50,57 +135,22 @@ export function deleteChar(
 export function pasteAfter(
   state: EditorState,
   pos: number,
-  vimState: VimState,
+  clipboardText: string,
   count: number = 1,
 ): Transaction {
-  if (!vimState.register.text) return state.tr
+  if (!clipboardText) return state.tr
 
-  if (vimState.register.linewise) {
+  if (isLinewiseClipboardText(clipboardText)) {
     // Find the top-level block boundary to insert after
     let $pos = state.doc.resolve(pos)
     if ($pos.depth === 0 && pos < state.doc.content.size) {
       $pos = state.doc.resolve(pos + 1)
     }
     const insertPos = $pos.depth >= 1 ? $pos.after(1) : state.doc.content.size
-    const tr = state.tr
-
-    if (vimState.register.content && vimState.register.content.length > 0) {
-      // Use stored nodes to preserve formatting
-      const allNodes: ProseMirrorNode[] = []
-      for (let c = 0; c < count; c++) {
-        allNodes.push(...vimState.register.content)
-      }
-      tr.insert(insertPos, Fragment.from(allNodes))
-    } else {
-      // Fallback: text-based paste
-      const textToInsert = vimState.register.text.repeat(count)
-      const paragraphType = state.schema.nodes.paragraph
-      if (!paragraphType) return state.tr
-      const lines = textToInsert.split('\n')
-      let currentInsertPos = insertPos
-      for (const line of lines) {
-        const newNode = paragraphType.create(
-          null,
-          line ? state.schema.text(line) : undefined,
-        )
-        tr.insert(currentInsertPos, newNode)
-        currentInsertPos += newNode.nodeSize
-      }
-    }
-
-    // Position cursor at start of first inserted content
-    try {
-      const $p = tr.doc.resolve(insertPos + 1)
-      const sel = Selection.findFrom($p, 1, true)
-      if (sel) tr.setSelection(sel)
-    } catch {
-      // leave as-is
-    }
-
-    return tr
+    return insertLinewiseText(state, insertPos, clipboardText, count)
   } else {
     // Insert text after cursor
-    const textToInsert = vimState.register.text.repeat(count)
+    const textToInsert = repeatText(clipboardText, count)
     const insertPos = pos + 1
     const clampedPos = Math.min(insertPos, lineEndAt(state, pos))
     const tr = state.tr.insertText(textToInsert, clampedPos)
@@ -123,57 +173,22 @@ export function pasteAfter(
 export function pasteBefore(
   state: EditorState,
   pos: number,
-  vimState: VimState,
+  clipboardText: string,
   count: number = 1,
 ): Transaction {
-  if (!vimState.register.text) return state.tr
+  if (!clipboardText) return state.tr
 
-  if (vimState.register.linewise) {
+  if (isLinewiseClipboardText(clipboardText)) {
     // Find the top-level block boundary to insert before
     let $pos = state.doc.resolve(pos)
     if ($pos.depth === 0 && pos < state.doc.content.size) {
       $pos = state.doc.resolve(pos + 1)
     }
     const insertPos = $pos.depth >= 1 ? $pos.before(1) : 0
-    const tr = state.tr
-
-    if (vimState.register.content && vimState.register.content.length > 0) {
-      // Use stored nodes to preserve formatting
-      const allNodes: ProseMirrorNode[] = []
-      for (let c = 0; c < count; c++) {
-        allNodes.push(...vimState.register.content)
-      }
-      tr.insert(insertPos, Fragment.from(allNodes))
-    } else {
-      // Fallback: text-based paste
-      const textToInsert = vimState.register.text.repeat(count)
-      const paragraphType = state.schema.nodes.paragraph
-      if (!paragraphType) return state.tr
-      const lines = textToInsert.split('\n')
-      let currentInsertPos = insertPos
-      for (const line of lines) {
-        const newNode = paragraphType.create(
-          null,
-          line ? state.schema.text(line) : undefined,
-        )
-        tr.insert(currentInsertPos, newNode)
-        currentInsertPos += newNode.nodeSize
-      }
-    }
-
-    // Position cursor at start of first inserted content
-    try {
-      const $p = tr.doc.resolve(insertPos + 1)
-      const sel = Selection.findFrom($p, 1, true)
-      if (sel) tr.setSelection(sel)
-    } catch {
-      // leave as-is
-    }
-
-    return tr
+    return insertLinewiseText(state, insertPos, clipboardText, count)
   } else {
     // Insert text before cursor
-    const textToInsert = vimState.register.text.repeat(count)
+    const textToInsert = repeatText(clipboardText, count)
     const tr = state.tr.insertText(textToInsert, pos)
     // Position cursor at the start of inserted text
     try {
@@ -186,6 +201,32 @@ export function pasteBefore(
 }
 
 /**
+ * Replace count characters under the cursor (r command).
+ */
+export function replaceChars(
+  state: EditorState,
+  pos: number,
+  char: string,
+  count: number = 1,
+): Transaction {
+  const lineE = lineEndAt(state, pos)
+  if (pos >= lineE) return state.tr
+
+  const to = Math.min(pos + count, lineE)
+  const replaceCount = to - pos
+  if (replaceCount <= 0) return state.tr
+
+  const tr = state.tr.insertText(char.repeat(replaceCount), pos, to)
+  const newPos = pos + replaceCount - 1
+  try {
+    tr.setSelection(TextSelection.create(tr.doc, newPos))
+  } catch {
+    // leave as-is
+  }
+  return tr
+}
+
+/**
  * Open line below and enter insert mode (o command).
  */
 export function openLineBelow(
@@ -193,6 +234,20 @@ export function openLineBelow(
   pos: number,
   vimState: VimState,
 ): Transaction {
+  const listItemContext = getListItemContext(state, pos)
+  if (listItemContext) {
+    const { $pos, depth, node } = listItemContext
+    const tr = state.tr
+    const insertPos = $pos.after(depth)
+    const newListItem = node.type.createAndFill(node.attrs)
+    if (newListItem) {
+      tr.insert(insertPos, newListItem)
+      setSelectionInsideInsertedNode(tr, insertPos)
+      vimState.mode = 'insert'
+      return tr
+    }
+  }
+
   const bounds = paragraphBounds(state, pos)
   const insertPos = bounds.to
   const paragraphType = state.schema.nodes.paragraph
@@ -203,12 +258,7 @@ export function openLineBelow(
   tr.insert(insertPos, newNode)
 
   // Move cursor into the new paragraph
-  try {
-    const newPos = insertPos + 1
-    tr.setSelection(TextSelection.create(tr.doc, newPos))
-  } catch {
-    // leave as-is
-  }
+  setSelectionInsideInsertedNode(tr, insertPos)
 
   vimState.mode = 'insert'
   return tr
@@ -222,6 +272,20 @@ export function openLineAbove(
   pos: number,
   vimState: VimState,
 ): Transaction {
+  const listItemContext = getListItemContext(state, pos)
+  if (listItemContext) {
+    const { $pos, depth, node } = listItemContext
+    const tr = state.tr
+    const insertPos = $pos.before(depth)
+    const newListItem = node.type.createAndFill(node.attrs)
+    if (newListItem) {
+      tr.insert(insertPos, newListItem)
+      setSelectionInsideInsertedNode(tr, insertPos)
+      vimState.mode = 'insert'
+      return tr
+    }
+  }
+
   const bounds = paragraphBounds(state, pos)
   const insertPos = bounds.from
   const paragraphType = state.schema.nodes.paragraph
@@ -232,12 +296,7 @@ export function openLineAbove(
   tr.insert(insertPos, newNode)
 
   // Move cursor into the new paragraph
-  try {
-    const newPos = insertPos + 1
-    tr.setSelection(TextSelection.create(tr.doc, newPos))
-  } catch {
-    // leave as-is
-  }
+  setSelectionInsideInsertedNode(tr, insertPos)
 
   vimState.mode = 'insert'
   return tr

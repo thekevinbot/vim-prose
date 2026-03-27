@@ -1,7 +1,7 @@
 {
   "name": "vim-prose",
   "author": "KJ Shanks",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Vim keybinding extension for Tiptap v3 / ProseMirror",
   "type": "module",
   "main": "dist/extensions/vim/index.js",

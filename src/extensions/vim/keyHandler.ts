@@ -40,6 +40,7 @@ import {
   deleteChar,
   pasteAfter,
   pasteBefore,
+  replaceChars,
   openLineBelow,
   openLineAbove,
   joinLines,
@@ -54,6 +55,7 @@ import {
   findPrevMatch,
   wordUnderCursor,
 } from './utils'
+import { readSystemClipboardText } from './clipboard'
 
 function clearPendingState(vimState: VimState) {
   vimState.count = null
@@ -67,10 +69,48 @@ function clearPendingState(vimState: VimState) {
   vimState.shiftLeftPending = false
   vimState.markPending = false
   vimState.gotoMarkPending = false
+  vimState.replacePendingCount = null
 }
 
 function getEffectiveCount(vimState: VimState): number {
   return vimState.count ?? 1
+}
+
+function getReplaceInputChar(event: KeyboardEvent): string | null {
+  if (event.key === 'Tab') return '\t'
+  if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+    return event.key
+  }
+  return null
+}
+
+function updateStatus(view: EditorView, vimState: VimState, status: string) {
+  vimState.statusMessage = status
+  view.dispatch(view.state.tr)
+}
+
+function pasteFromClipboard(
+  view: EditorView,
+  vimState: VimState,
+  count: number,
+  before: boolean,
+) {
+  void readSystemClipboardText().then((clipboardText) => {
+    if (clipboardText === null) {
+      updateStatus(view, vimState, 'clipboard unavailable')
+      return
+    }
+    if (!clipboardText) return
+
+    const state = view.state
+    const pos = state.selection.$head.pos
+    const tr = before
+      ? pasteBefore(state, pos, clipboardText, count)
+      : pasteAfter(state, pos, clipboardText, count)
+    if (tr.docChanged || tr.selectionSet) {
+      view.dispatch(tr)
+    }
+  })
 }
 
 /**
@@ -254,13 +294,18 @@ function replayLastAction(
           break
         }
         case 'p': {
-          const tr = pasteAfter(state, pos, vimState, count)
-          view.dispatch(tr)
+          pasteFromClipboard(view, vimState, count, false)
           break
         }
         case 'P': {
-          const tr = pasteBefore(state, pos, vimState, count)
-          view.dispatch(tr)
+          pasteFromClipboard(view, vimState, count, true)
+          break
+        }
+        case 'r': {
+          if (action.replaceChar) {
+            const tr = replaceChars(state, pos, action.replaceChar, count)
+            view.dispatch(tr)
+          }
           break
         }
         case 'J': {
@@ -554,6 +599,35 @@ export function handleKeyDown(
     return true // consume all keys in search mode
   }
 
+  // ── REPLACE MODE (R) ──
+  if (vimState.mode === 'replace') {
+    if (key === 'Escape' || (ctrlKey && key === 'c')) {
+      vimState.mode = 'normal'
+      clearPendingState(vimState)
+      view.dispatch(state.tr)
+      return true
+    }
+
+    const replaceChar = getReplaceInputChar(event)
+    if (replaceChar !== null) {
+      const lineE = lineEndAt(state, pos)
+      const tr =
+        pos < lineE
+          ? state.tr.insertText(replaceChar, pos, pos + 1)
+          : state.tr.insertText(replaceChar, pos)
+      const nextPos = Math.min(pos + replaceChar.length, tr.doc.content.size)
+      try {
+        tr.setSelection(TextSelection.create(tr.doc, nextPos))
+      } catch {
+        // leave as-is
+      }
+      view.dispatch(tr)
+      return true
+    }
+
+    return false
+  }
+
   // ── INSERT MODE ──
   if (vimState.mode === 'insert') {
     if (key === 'Escape' || (ctrlKey && key === 'c')) {
@@ -595,6 +669,38 @@ export function handleKeyDown(
     // Clear search highlights (searchTerm preserved for n/N)
     vimState.searchHighlightsVisible = false
     view.dispatch(state.tr) // trigger decoration update
+    return true
+  }
+
+  // ── SINGLE REPLACE PENDING (r + char) ──
+  if (vimState.replacePendingCount !== null) {
+    if (
+      key === 'Shift' ||
+      key === 'Control' ||
+      key === 'Alt' ||
+      key === 'Meta'
+    ) {
+      return true
+    }
+
+    const replaceCount = vimState.replacePendingCount
+    vimState.replacePendingCount = null
+
+    const replaceChar = getReplaceInputChar(event)
+    if (replaceChar === null) {
+      clearPendingState(vimState)
+      return true
+    }
+
+    const tr = replaceChars(state, pos, replaceChar, replaceCount)
+    view.dispatch(tr)
+    vimState.lastAction = {
+      type: 'command',
+      key: 'r',
+      count: replaceCount,
+      replaceChar,
+    }
+    clearPendingState(vimState)
     return true
   }
 
@@ -1370,17 +1476,27 @@ export function handleKeyDown(
       return true
     }
     case 'p': {
-      const tr = pasteAfter(state, pos, vimState, count)
-      view.dispatch(tr)
+      pasteFromClipboard(view, vimState, count, false)
       vimState.lastAction = { type: 'command', key: 'p', count }
       clearPendingState(vimState)
       return true
     }
     case 'P': {
-      const tr = pasteBefore(state, pos, vimState, count)
-      view.dispatch(tr)
+      pasteFromClipboard(view, vimState, count, true)
       vimState.lastAction = { type: 'command', key: 'P', count }
       clearPendingState(vimState)
+      return true
+    }
+    case 'r': {
+      const replaceCount = count
+      clearPendingState(vimState)
+      vimState.replacePendingCount = replaceCount
+      return true
+    }
+    case 'R': {
+      vimState.mode = 'replace'
+      clearPendingState(vimState)
+      view.dispatch(state.tr)
       return true
     }
     case 'o': {

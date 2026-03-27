@@ -35,7 +35,7 @@ Read the current mode and status (e.g. to render a status bar):
 ```typescript
 import { getVimMode, getVimStatus } from 'vim-prose/tiptap'
 
-const mode = getVimMode(editor) // 'normal' | 'insert' | 'visual' | 'visual-line'
+const mode = getVimMode(editor) // 'normal' | 'insert' | 'replace' | 'visual' | 'visual-line'
 const status = getVimStatus(editor) // e.g. '3/14', 'mark a set', ''
 ```
 
@@ -80,6 +80,7 @@ Import the bundled CSS for basic mode-indicator styling:
 | ------------- | ------------------------------------------------------- |
 | `normal`      | Default mode — motions, operators, commands             |
 | `insert`      | Native editor input; only `Esc`/`Ctrl-c` is intercepted |
+| `replace`     | Replace characters until `Esc`/`Ctrl-c`                 |
 | `visual`      | Characterwise selection                                 |
 | `visual-line` | Linewise (full paragraph) selection                     |
 
@@ -91,6 +92,7 @@ Import the bundled CSS for basic mode-indicator styling:
 | `I`              | Insert at first non-blank character        |
 | `a`              | Insert after cursor                        |
 | `A`              | Insert at end of line                      |
+| `R`              | Enter replace mode                         |
 | `v`              | Enter / toggle characterwise visual mode   |
 | `V`              | Enter / toggle visual-line mode            |
 | `Esc` / `Ctrl-c` | Return to normal mode; clear pending state |
@@ -126,7 +128,7 @@ Operators combine with motions and text objects in normal mode, or act on the se
 | Operator | Action                              |
 | -------- | ----------------------------------- |
 | `d`      | Delete                              |
-| `y`      | Yank (copy to register)             |
+| `y`      | Yank (copy to system clipboard)     |
 | `c`      | Change (delete + enter insert mode) |
 
 Examples: `dw`, `y$`, `ciw`, `da(`, `df,`
@@ -164,13 +166,17 @@ Used with operators (`d`, `y`, `c`) or in visual mode.
 | Key  | Action                                                           |
 | ---- | ---------------------------------------------------------------- |
 | `x`  | Delete character under cursor                                    |
-| `p`  | Paste register after cursor (linewise: inserts paragraph below)  |
-| `P`  | Paste register before cursor (linewise: inserts paragraph above) |
+| `p`  | Paste clipboard after cursor (linewise: inserts paragraph below) |
+| `P`  | Paste clipboard before cursor (linewise: inserts paragraph above) |
+| `r`  | Replace character(s) under cursor with next typed character      |
+| `R`  | Enter replace mode (keeps replacing until `Esc`)                 |
 | `o`  | Open new line below, enter insert mode                           |
 | `O`  | Open new line above, enter insert mode                           |
 | `J`  | Join current line with the next line                             |
 | `>>` | Indent current line (list item sink)                             |
 | `<<` | Outdent current line (list item lift)                            |
+
+`r` supports counts: `3rx` replaces 3 characters with `x`.
 
 ### Undo / Redo
 
@@ -211,7 +217,7 @@ The status line shows feedback: `mark a set`, `mark a`, `mark x not set`.
 
 Repeatable actions include:
 
-- Simple commands: `x`, `p`, `P`, `J`, `D`, `>>`, `<<`
+- Simple commands: `x`, `p`, `P`, `r`, `J`, `D`, `>>`, `<<`
 - Doubled operators: `dd`, `cc`
 - Operator + motion: `dw`, `cw`, `d$`, `df{char}`, etc.
 - Operator + text object: `diw`, `ci"`, etc.
@@ -239,9 +245,11 @@ All motions, operators, and find/till commands accept a numeric count prefix.
 3>>    → indent 3 times
 ```
 
-### Register
+### Clipboard
 
-A single unnamed register stores the most recent yank or delete. Deletes from `d`/`x`/`c` and yanks from `y` all write to it. The register carries a linewise flag: pasting a linewise register inserts full paragraphs rather than inline text.
+Yanks/deletes (`y`, `d`, `c`, `x`) write to the system clipboard, and `p`/`P` paste from the system clipboard.
+
+For linewise operations (`yy`, `dd`, etc.), vim-prose writes clipboard text with a trailing newline. `p`/`P` treat clipboard content ending in a newline as linewise paste (insert full paragraphs above/below).
 
 ### Status Line
 
@@ -252,13 +260,15 @@ The plugin exposes status messages via `getVimStatus(editor)` (Tiptap) or `vimSt
 - Mark jump: `mark a`
 - Mark not found: `mark x not set`
 - No results: `pattern not found`
+- Clipboard unavailable: `clipboard unavailable`
 
 ---
 
 ## Design Notes
 
 - **Paragraph = line** — ProseMirror paragraph nodes are treated as Vim lines. All line-boundary motions (`0`, `^`, `$`, `j`, `k`) operate at the paragraph level.
-- **No system clipboard** — the register is in-memory only; browser clipboard is not used.
+- **System clipboard integration** — yank/delete/copy and paste use the browser clipboard API.
 - **Single ProseMirror plugin** — all state lives in a `PluginKey` inside a single `Plugin`.
-- **Insert mode passthrough** — in insert mode, only `Esc`/`Ctrl-c` is intercepted; all other keys are passed through to ProseMirror's default input handling.
+- **Insert mode passthrough** — in insert mode, only `Esc`/`Ctrl-c` is intercepted; other keys are passed through to ProseMirror's default input handling.
+- **Replace mode editing** — in replace mode (`R`), typed characters replace existing content one character at a time (inserting at end-of-line), until canceled.
 - **Scroll containment** — centering (`zz`) and search navigation (`n`/`N`) only scroll the editor element, never the outer page.

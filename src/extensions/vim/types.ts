@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from 'prosemirror-model'
 
-export type Mode = 'normal' | 'insert' | 'visual' | 'visual-line'
+export type Mode = 'normal' | 'insert' | 'replace' | 'visual' | 'visual-line'
 
 export interface Register {
   text: string
@@ -23,6 +23,7 @@ export interface RepeatableAction {
   findMotion?: 'f' | 'F' | 't' | 'T'
   textObject?: { type: 'i' | 'a'; object: string }
   insertedText?: string
+  replaceChar?: string
 }
 
 export interface VimState {
@@ -50,6 +51,7 @@ export interface VimState {
   lastAction: RepeatableAction | null
   insertTextBuffer: string
   isTrackingInsert: boolean
+  replacePendingCount: number | null
   // Indent pending
   shiftRightPending: boolean
   shiftLeftPending: boolean
@@ -89,6 +91,7 @@ export function defaultVimState(): VimState {
     lastAction: null,
     insertTextBuffer: '',
     isTrackingInsert: false,
+    replacePendingCount: null,
     shiftRightPending: false,
     shiftLeftPending: false,
     zzPending: false,

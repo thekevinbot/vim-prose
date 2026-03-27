@@ -129,7 +129,7 @@ export function createVimPlugin(commands: VimEditorCommands): Plugin<VimState> {
         const decorations: Decoration[] = []
         const cursorPos = vimState.visualHead ?? state.selection.$head.pos
 
-        if (vimState.mode !== 'insert') {
+        if (vimState.mode !== 'insert' && vimState.mode !== 'replace') {
           // Block cursor
           try {
             let $pos = state.doc.resolve(cursorPos)

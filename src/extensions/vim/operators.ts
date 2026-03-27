@@ -4,7 +4,6 @@ import {
   TextSelection,
   Selection,
 } from 'prosemirror-state'
-import { Node as ProseMirrorNode } from 'prosemirror-model'
 import { VimState } from './types'
 import {
   lineStartAt,
@@ -15,38 +14,7 @@ import {
   paragraphBounds,
   lineBounds,
 } from './utils'
-
-/**
- * Extract complete top-level nodes that overlap the given range.
- * For partially-overlapping nodes (e.g. a list where only one item is selected),
- * we create a copy of the parent with only the selected children.
- */
-function extractTopLevelNodes(
-  state: EditorState,
-  from: number,
-  to: number,
-): ProseMirrorNode[] {
-  const nodes: ProseMirrorNode[] = []
-  state.doc.nodesBetween(from, to, (node, pos, parent) => {
-    if (parent === state.doc) {
-      const nodeEnd = pos + node.nodeSize
-      if (pos >= from && nodeEnd <= to) {
-        // Fully contained
-        nodes.push(node)
-      } else {
-        // Partially contained — slice the content
-        const contentStart = pos + 1
-        const relFrom = Math.max(from - contentStart, 0)
-        const relTo = Math.min(to - contentStart, node.content.size)
-        if (relFrom < relTo) {
-          nodes.push(node.copy(node.content.cut(relFrom, relTo)))
-        }
-      }
-      return false // Don't descend into children
-    }
-  })
-  return nodes
-}
+import { writeSystemClipboardText } from './clipboard'
 
 /**
  * Resolve a text object, returning { from, to } positions.
@@ -224,12 +192,11 @@ export function executeDelete(
   state: EditorState,
   from: number,
   to: number,
-  vimState: VimState,
+  _vimState: VimState,
   linewise: boolean = false,
 ): Transaction {
   const text = state.doc.textBetween(from, to, '\n', '\n')
-  const content = linewise ? extractTopLevelNodes(state, from, to) : null
-  vimState.register = { text, linewise, content }
+  void writeSystemClipboardText(text, linewise)
 
   let tr: Transaction
 
@@ -265,12 +232,11 @@ export function executeYank(
   state: EditorState,
   from: number,
   to: number,
-  vimState: VimState,
+  _vimState: VimState,
   linewise: boolean = false,
 ): void {
   const text = state.doc.textBetween(from, to, '\n', '\n')
-  const content = linewise ? extractTopLevelNodes(state, from, to) : null
-  vimState.register = { text, linewise, content }
+  void writeSystemClipboardText(text, linewise)
 }
 
 /**
@@ -285,8 +251,7 @@ export function executeChange(
   linewise: boolean = false,
 ): Transaction {
   const text = state.doc.textBetween(from, to, '\n', '\n')
-  const content = linewise ? extractTopLevelNodes(state, from, to) : null
-  vimState.register = { text, linewise, content }
+  void writeSystemClipboardText(text, linewise)
 
   let tr: Transaction
 
@@ -324,7 +289,7 @@ export function deleteLines(
   state: EditorState,
   pos: number,
   count: number,
-  vimState: VimState,
+  _vimState: VimState,
 ): Transaction {
   let from = lineBounds(state, pos).from
   let to = from
@@ -341,8 +306,7 @@ export function deleteLines(
   to = Math.min(to, state.doc.content.size)
 
   const text = state.doc.textBetween(from, to, '\n', '\n')
-  const content = extractTopLevelNodes(state, from, to)
-  vimState.register = { text, linewise: true, content }
+  void writeSystemClipboardText(text, true)
 
   const tr = state.tr.delete(from, to)
 
@@ -367,7 +331,7 @@ export function yankLines(
   state: EditorState,
   pos: number,
   count: number,
-  vimState: VimState,
+  _vimState: VimState,
 ): void {
   let from = lineBounds(state, pos).from
   let to = from
@@ -384,8 +348,7 @@ export function yankLines(
   to = Math.min(to, state.doc.content.size)
 
   const text = state.doc.textBetween(from, to, '\n', '\n')
-  const content = extractTopLevelNodes(state, from, to)
-  vimState.register = { text, linewise: true, content }
+  void writeSystemClipboardText(text, true)
 }
 
 /**
@@ -405,7 +368,7 @@ export function changeLines(
   if (count <= 1) {
     // Just clear the content of the current line
     const text = state.doc.textBetween(firstLineStart, firstLineEnd, '\n', '\n')
-    vimState.register = { text, linewise: true, content: null }
+    void writeSystemClipboardText(text, true)
     const tr = state.tr.delete(firstLineStart, firstLineEnd)
     tr.setSelection(TextSelection.create(tr.doc, firstLineStart))
     vimState.mode = 'insert'
@@ -426,8 +389,7 @@ export function changeLines(
   to = Math.min(to, state.doc.content.size)
 
   const text = state.doc.textBetween(from, to, '\n', '\n')
-  const changeContent = extractTopLevelNodes(state, from, to)
-  vimState.register = { text, linewise: true, content: changeContent }
+  void writeSystemClipboardText(text, true)
 
   // Delete all the lines
   const tr = state.tr.delete(from, to)

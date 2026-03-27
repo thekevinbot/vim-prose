@@ -38,6 +38,7 @@ const hint = document.getElementById('mode-hint')!
 const modeHints: Record<string, string> = {
   normal: '',
   insert: '-- press Esc to return to normal --',
+  replace: '-- replace mode (Esc to exit) --',
   visual: '-- visual --',
   'visual-line': '-- visual line --',
 }
