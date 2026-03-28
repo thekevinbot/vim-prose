@@ -14,7 +14,7 @@ import {
   paragraphBounds,
   lineBounds,
 } from './utils'
-import { writeSystemClipboardText } from './clipboard'
+import { writeSystemClipboardRange } from './clipboard'
 
 /**
  * Resolve a text object, returning { from, to } positions.
@@ -195,8 +195,7 @@ export function executeDelete(
   _vimState: VimState,
   linewise: boolean = false,
 ): Transaction {
-  const text = state.doc.textBetween(from, to, '\n', '\n')
-  void writeSystemClipboardText(text, linewise)
+  void writeSystemClipboardRange(state, from, to, linewise)
 
   let tr: Transaction
 
@@ -235,8 +234,7 @@ export function executeYank(
   _vimState: VimState,
   linewise: boolean = false,
 ): void {
-  const text = state.doc.textBetween(from, to, '\n', '\n')
-  void writeSystemClipboardText(text, linewise)
+  void writeSystemClipboardRange(state, from, to, linewise)
 }
 
 /**
@@ -250,8 +248,7 @@ export function executeChange(
   vimState: VimState,
   linewise: boolean = false,
 ): Transaction {
-  const text = state.doc.textBetween(from, to, '\n', '\n')
-  void writeSystemClipboardText(text, linewise)
+  void writeSystemClipboardRange(state, from, to, linewise)
 
   let tr: Transaction
 
@@ -305,8 +302,7 @@ export function deleteLines(
 
   to = Math.min(to, state.doc.content.size)
 
-  const text = state.doc.textBetween(from, to, '\n', '\n')
-  void writeSystemClipboardText(text, true)
+  void writeSystemClipboardRange(state, from, to, true)
 
   const tr = state.tr.delete(from, to)
 
@@ -347,8 +343,7 @@ export function yankLines(
 
   to = Math.min(to, state.doc.content.size)
 
-  const text = state.doc.textBetween(from, to, '\n', '\n')
-  void writeSystemClipboardText(text, true)
+  void writeSystemClipboardRange(state, from, to, true)
 }
 
 /**
@@ -367,8 +362,7 @@ export function changeLines(
 
   if (count <= 1) {
     // Just clear the content of the current line
-    const text = state.doc.textBetween(firstLineStart, firstLineEnd, '\n', '\n')
-    void writeSystemClipboardText(text, true)
+    void writeSystemClipboardRange(state, firstLineStart, firstLineEnd, true)
     const tr = state.tr.delete(firstLineStart, firstLineEnd)
     tr.setSelection(TextSelection.create(tr.doc, firstLineStart))
     vimState.mode = 'insert'
@@ -388,8 +382,7 @@ export function changeLines(
   }
   to = Math.min(to, state.doc.content.size)
 
-  const text = state.doc.textBetween(from, to, '\n', '\n')
-  void writeSystemClipboardText(text, true)
+  void writeSystemClipboardRange(state, from, to, true)
 
   // Delete all the lines
   const tr = state.tr.delete(from, to)

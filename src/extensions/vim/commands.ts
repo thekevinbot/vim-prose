@@ -4,13 +4,13 @@ import {
   TextSelection,
   Selection,
 } from 'prosemirror-state'
-import { Node as ProseMirrorNode, ResolvedPos } from 'prosemirror-model'
+import { Node as ProseMirrorNode, ResolvedPos, Slice } from 'prosemirror-model'
 import { VimState } from './types'
 import { lineEndAt, paragraphBounds } from './utils'
 import {
+  ClipboardContent,
   getLinewiseClipboardLines,
-  isLinewiseClipboardText,
-  writeSystemClipboardText,
+  writeSystemClipboardRange,
 } from './clipboard'
 
 interface ListItemContext {
@@ -71,6 +71,62 @@ function repeatText(text: string, count: number): string {
   return count > 1 ? text.repeat(count) : text
 }
 
+function insertSliceRepeated(
+  tr: Transaction,
+  insertPos: number,
+  slice: Slice,
+  count: number,
+): number {
+  let currentInsertPos = insertPos
+  for (let i = 0; i < count; i++) {
+    const beforeSize = tr.doc.content.size
+    tr.setSelection(TextSelection.create(tr.doc, currentInsertPos))
+    tr.replaceSelection(slice)
+    const insertedSize = tr.doc.content.size - beforeSize
+    if (insertedSize <= 0) break
+    currentInsertPos = tr.selection.to
+  }
+  return currentInsertPos
+}
+
+function insertLinewiseSlice(
+  state: EditorState,
+  insertPos: number,
+  slice: Slice,
+  count: number,
+): Transaction | null {
+  const tr = state.tr
+  try {
+    const endPos = insertSliceRepeated(tr, insertPos, slice, count)
+    if (endPos <= insertPos) return null
+    setSelectionInsideInsertedNode(tr, insertPos)
+    return tr
+  } catch {
+    return null
+  }
+}
+
+function insertInlineSlice(
+  state: EditorState,
+  insertPos: number,
+  slice: Slice,
+  count: number,
+  placeCursorAtStart: boolean,
+): Transaction | null {
+  const tr = state.tr
+  try {
+    const endPos = insertSliceRepeated(tr, insertPos, slice, count)
+    if (endPos <= insertPos) return null
+    const selectionPos = placeCursorAtStart
+      ? insertPos
+      : Math.max(insertPos, endPos - 1)
+    tr.setSelection(TextSelection.create(tr.doc, selectionPos))
+    return tr
+  } catch {
+    return null
+  }
+}
+
 function insertLinewiseText(
   state: EditorState,
   insertPos: number,
@@ -116,8 +172,7 @@ export function deleteChar(
     return state.tr
   }
 
-  const text = state.doc.textBetween(pos, to, '\n', '\n')
-  void writeSystemClipboardText(text, false)
+  void writeSystemClipboardRange(state, pos, to, false)
 
   const tr = state.tr.delete(pos, to)
   const newPos = Math.min(pos, tr.doc.content.size)
@@ -135,24 +190,40 @@ export function deleteChar(
 export function pasteAfter(
   state: EditorState,
   pos: number,
-  clipboardText: string,
+  clipboard: ClipboardContent,
   count: number = 1,
 ): Transaction {
-  if (!clipboardText) return state.tr
+  if (!clipboard.text && !clipboard.slice) return state.tr
 
-  if (isLinewiseClipboardText(clipboardText)) {
+  if (clipboard.linewise) {
     // Find the top-level block boundary to insert after
     let $pos = state.doc.resolve(pos)
     if ($pos.depth === 0 && pos < state.doc.content.size) {
       $pos = state.doc.resolve(pos + 1)
     }
     const insertPos = $pos.depth >= 1 ? $pos.after(1) : state.doc.content.size
-    return insertLinewiseText(state, insertPos, clipboardText, count)
+    if (clipboard.slice) {
+      const richTr = insertLinewiseSlice(state, insertPos, clipboard.slice, count)
+      if (richTr) return richTr
+    }
+    if (!clipboard.text) return state.tr
+    return insertLinewiseText(state, insertPos, clipboard.text, count)
   } else {
-    // Insert text after cursor
-    const textToInsert = repeatText(clipboardText, count)
     const insertPos = pos + 1
     const clampedPos = Math.min(insertPos, lineEndAt(state, pos))
+    if (clipboard.slice) {
+      const richTr = insertInlineSlice(
+        state,
+        clampedPos,
+        clipboard.slice,
+        count,
+        false,
+      )
+      if (richTr) return richTr
+    }
+    if (!clipboard.text) return state.tr
+    // Insert text after cursor
+    const textToInsert = repeatText(clipboard.text, count)
     const tr = state.tr.insertText(textToInsert, clampedPos)
     // Position cursor at end of inserted text
     const newPos = clampedPos + textToInsert.length - 1
@@ -173,22 +244,32 @@ export function pasteAfter(
 export function pasteBefore(
   state: EditorState,
   pos: number,
-  clipboardText: string,
+  clipboard: ClipboardContent,
   count: number = 1,
 ): Transaction {
-  if (!clipboardText) return state.tr
+  if (!clipboard.text && !clipboard.slice) return state.tr
 
-  if (isLinewiseClipboardText(clipboardText)) {
+  if (clipboard.linewise) {
     // Find the top-level block boundary to insert before
     let $pos = state.doc.resolve(pos)
     if ($pos.depth === 0 && pos < state.doc.content.size) {
       $pos = state.doc.resolve(pos + 1)
     }
     const insertPos = $pos.depth >= 1 ? $pos.before(1) : 0
-    return insertLinewiseText(state, insertPos, clipboardText, count)
+    if (clipboard.slice) {
+      const richTr = insertLinewiseSlice(state, insertPos, clipboard.slice, count)
+      if (richTr) return richTr
+    }
+    if (!clipboard.text) return state.tr
+    return insertLinewiseText(state, insertPos, clipboard.text, count)
   } else {
+    if (clipboard.slice) {
+      const richTr = insertInlineSlice(state, pos, clipboard.slice, count, true)
+      if (richTr) return richTr
+    }
+    if (!clipboard.text) return state.tr
     // Insert text before cursor
-    const textToInsert = repeatText(clipboardText, count)
+    const textToInsert = repeatText(clipboard.text, count)
     const tr = state.tr.insertText(textToInsert, pos)
     // Position cursor at the start of inserted text
     try {

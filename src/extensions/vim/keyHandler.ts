@@ -55,7 +55,12 @@ import {
   findPrevMatch,
   wordUnderCursor,
 } from './utils'
-import { readSystemClipboardText } from './clipboard'
+import {
+  ClipboardContent,
+  getLastInternalClipboardContent,
+  readSystemClipboardContent,
+  setClipboardSerializerFromView,
+} from './clipboard'
 
 function clearPendingState(vimState: VimState) {
   vimState.count = null
@@ -95,18 +100,37 @@ function pasteFromClipboard(
   count: number,
   before: boolean,
 ) {
-  void readSystemClipboardText().then((clipboardText) => {
-    if (clipboardText === null) {
-      updateStatus(view, vimState, 'clipboard unavailable')
-      return
+  const readState = view.state
+  const internalClipboard = getLastInternalClipboardContent()
+  void readSystemClipboardContent(readState).then((systemClipboard) => {
+    let clipboard: ClipboardContent | null = systemClipboard
+    if (clipboard === null) {
+      clipboard = internalClipboard
+      if (clipboard === null) {
+        updateStatus(view, vimState, 'clipboard unavailable')
+        return
+      }
+    } else if (
+      !clipboard.slice &&
+      internalClipboard?.slice &&
+      clipboard.text === internalClipboard.text
+    ) {
+      // Some browsers only expose plain text on read; recover rich structure from
+      // the most recent Vim copy/delete/change when the plain text matches.
+      clipboard = {
+        text: clipboard.text,
+        linewise: internalClipboard.linewise,
+        slice: internalClipboard.slice,
+      }
     }
-    if (!clipboardText) return
+
+    if (!clipboard.text && !clipboard.slice) return
 
     const state = view.state
     const pos = state.selection.$head.pos
     const tr = before
-      ? pasteBefore(state, pos, clipboardText, count)
-      : pasteAfter(state, pos, clipboardText, count)
+      ? pasteBefore(state, pos, clipboard, count)
+      : pasteAfter(state, pos, clipboard, count)
     if (tr.docChanged || tr.selectionSet) {
       view.dispatch(tr)
     }
@@ -545,6 +569,7 @@ export function handleKeyDown(
   vimState: VimState,
   commands: VimEditorCommands,
 ): boolean {
+  setClipboardSerializerFromView(view)
   const state = view.state
   // Clear status message from previous action
   vimState.statusMessage = ''

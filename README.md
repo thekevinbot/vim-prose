@@ -163,18 +163,18 @@ Used with operators (`d`, `y`, `c`) or in visual mode.
 
 ### Editing Commands
 
-| Key  | Action                                                           |
-| ---- | ---------------------------------------------------------------- |
-| `x`  | Delete character under cursor                                    |
-| `p`  | Paste clipboard after cursor (linewise: inserts paragraph below) |
+| Key  | Action                                                            |
+| ---- | ----------------------------------------------------------------- |
+| `x`  | Delete character under cursor                                     |
+| `p`  | Paste clipboard after cursor (linewise: inserts paragraph below)  |
 | `P`  | Paste clipboard before cursor (linewise: inserts paragraph above) |
-| `r`  | Replace character(s) under cursor with next typed character      |
-| `R`  | Enter replace mode (keeps replacing until `Esc`)                 |
-| `o`  | Open new line below, enter insert mode                           |
-| `O`  | Open new line above, enter insert mode                           |
-| `J`  | Join current line with the next line                             |
-| `>>` | Indent current line (list item sink)                             |
-| `<<` | Outdent current line (list item lift)                            |
+| `r`  | Replace character(s) under cursor with next typed character       |
+| `R`  | Enter replace mode (keeps replacing until `Esc`)                  |
+| `o`  | Open new line below, enter insert mode                            |
+| `O`  | Open new line above, enter insert mode                            |
+| `J`  | Join current line with the next line                              |
+| `>>` | Indent current line (list item sink)                              |
+| `<<` | Outdent current line (list item lift)                             |
 
 `r` supports counts: `3rx` replaces 3 characters with `x`.
 
@@ -270,5 +270,4 @@ The plugin exposes status messages via `getVimStatus(editor)` (Tiptap) or `vimSt
 - **System clipboard integration** — yank/delete/copy and paste use the browser clipboard API.
 - **Single ProseMirror plugin** — all state lives in a `PluginKey` inside a single `Plugin`.
 - **Insert mode passthrough** — in insert mode, only `Esc`/`Ctrl-c` is intercepted; other keys are passed through to ProseMirror's default input handling.
-- **Replace mode editing** — in replace mode (`R`), typed characters replace existing content one character at a time (inserting at end-of-line), until canceled.
 - **Scroll containment** — centering (`zz`) and search navigation (`n`/`N`) only scroll the editor element, never the outer page.

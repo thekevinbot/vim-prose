@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.3.1 - 2026-03-28
+
+### Fixed
+
+- Rich yank/paste now preserves heading, list, and inline formatting structure more reliably.
+- Ordered list items copied linewise no longer paste back as unordered list items.
+- External markdown clipboard text is now parsed into editor structure (for example `###` headings and `1.` lists) instead of always pasting as literal text.
+- Markdown parsing now runs in both `clipboard.read()` and `readText()` fallback paths.
+
+### Changed
+
+- Clipboard writes now include richer multi-format payloads (`text/html`, `text/markdown`, `text/x-markdown`, custom ProseMirror payload).
+- `text/plain` output now prefers markdown syntax when structured content is present, improving interoperability with markdown-aware destinations.
+- Paste can recover rich structure from internal clipboard memory when browsers only expose plain text on clipboard read.
+
 ## 0.3.0 - 2026-03-27
 
 ### Added
