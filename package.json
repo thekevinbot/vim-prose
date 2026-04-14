@@ -24,7 +24,8 @@
     "build": "tsc && cp src/extensions/vim/vim-mode.css dist/extensions/vim/vim-mode.css",
     "typecheck": "tsc --noEmit",
     "dev": "vite demo",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prepare": "npm run build"
   },
   "peerDependencies": {
     "@tiptap/core": ">=3",
