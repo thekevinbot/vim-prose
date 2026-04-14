@@ -322,6 +322,32 @@ export function motionWordForward(state: EditorState, pos: number): number {
 }
 
 /**
+ * Move to end of current or next word (vim 'e').
+ */
+export function motionWordEnd(state: EditorState, pos: number): number {
+  const $pos = state.doc.resolve(pos)
+  if ($pos.depth === 0) {
+    const next = findNextTextPos(state, pos)
+    return next ?? pos
+  }
+  const lineEndPos = $pos.end($pos.depth)
+  let current = pos + 1
+  if (current >= lineEndPos) {
+    return crossToNextTextblock(state, $pos) ?? pos
+  }
+  while (current < lineEndPos && !isWordChar(charAt(state, current))) {
+    current++
+  }
+  if (current >= lineEndPos) {
+    return crossToNextTextblock(state, $pos) ?? pos
+  }
+  while (current + 1 < lineEndPos && isWordChar(charAt(state, current + 1))) {
+    current++
+  }
+  return current
+}
+
+/**
  * Move backward by one word.
  */
 export function motionWordBackward(state: EditorState, pos: number): number {

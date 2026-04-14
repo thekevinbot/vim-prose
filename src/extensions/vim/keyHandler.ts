@@ -18,6 +18,7 @@ import {
   motionDocEnd,
   motionWordForward,
   motionWordBackward,
+  motionWordEnd,
   motionFindCharForward,
   motionFindCharBackward,
   motionTillCharForward,
@@ -286,6 +287,8 @@ function resolveMotionKey(
       return applyMotionNTimes(state, pos, count, motionWordForward)
     case 'b':
       return applyMotionNTimes(state, pos, count, motionWordBackward)
+    case 'e':
+      return applyMotionNTimes(state, pos, count, motionWordEnd)
     default:
       return null
   }
@@ -1595,7 +1598,8 @@ export function handleKeyDown(
     case '^':
     case '$':
     case 'w':
-    case 'b': {
+    case 'b':
+    case 'e': {
       const targetPos = resolveMotionKey(state, pos, key, count, false)
       if (targetPos !== null) {
         view.dispatch(moveCursor(state, targetPos))

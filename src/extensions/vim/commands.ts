@@ -165,13 +165,17 @@ export function deleteChar(
   count: number = 1,
 ): Transaction {
   const lineE = lineEndAt(state, pos)
-  const to = Math.min(pos + count, lineE)
+  // vim: when cursor sits past the last char (PM's end-of-line position), x
+  // should delete the last char rather than no-op.
+  let from = pos
+  if (from >= lineE && lineE > 0) from = lineE - 1
+  const to = Math.min(from + count, lineE)
 
-  if (pos >= lineE) {
-    // Nothing to delete, return no-op
+  if (from >= to) {
     return state.tr
   }
 
+  pos = from
   void writeSystemClipboardRange(state, pos, to, false)
 
   const tr = state.tr.delete(pos, to)
