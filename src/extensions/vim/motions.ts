@@ -209,6 +209,39 @@ export function motionDocStart(state: EditorState): number {
 }
 
 /**
+ * Position of the last visible character on the line containing `pos`.
+ * If the line is empty, returns the line's start (PM-end==start).
+ * Used for normal-mode cursor placement so the block cursor sits ON the
+ * last character (vim semantics), not past it.
+ */
+export function motionLineLastChar(state: EditorState, pos: number): number {
+  const start = lineStartAt(state, pos)
+  const end = lineEndAt(state, pos)
+  return end > start ? end - 1 : end
+}
+
+/**
+ * Goto line N (1-indexed). Returns the first-non-blank position of that line,
+ * or clamps to last line if N exceeds the document.
+ */
+export function motionGotoLine(state: EditorState, n: number): number {
+  const textblocks: number[] = []
+  state.doc.nodesBetween(0, state.doc.content.size, (node, nodePos) => {
+    if (node.isTextblock) textblocks.push(nodePos)
+    return true
+  })
+  if (textblocks.length === 0) return 0
+  const idx = Math.max(0, Math.min(n - 1, textblocks.length - 1))
+  const target = textblocks[idx] + 1
+  // Move to first non-blank on that line
+  const start = lineStartAt(state, target)
+  const end = lineEndAt(state, target)
+  let p = start
+  while (p < end && isWhitespace(charAt(state, p))) p++
+  return p < end ? p : start
+}
+
+/**
  * Move to end of document.
  */
 export function motionDocEnd(state: EditorState): number {

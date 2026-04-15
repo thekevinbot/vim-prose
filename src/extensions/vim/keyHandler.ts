@@ -14,6 +14,8 @@ import {
   motionLineStart,
   motionFirstNonBlank,
   motionLineEnd,
+  motionLineLastChar,
+  motionGotoLine,
   motionDocStart,
   motionDocEnd,
   motionWordForward,
@@ -1600,7 +1602,13 @@ export function handleKeyDown(
     case 'w':
     case 'b':
     case 'e': {
-      const targetPos = resolveMotionKey(state, pos, key, count, false)
+      let targetPos = resolveMotionKey(state, pos, key, count, false)
+      // Vim cursor in normal mode sits ON the last character, not past it.
+      // motionLineEnd returns PM-end (past last char) which is correct for
+      // operators (d$, c$, y$) but wrong for cursor placement.
+      if (key === '$' && targetPos !== null) {
+        targetPos = motionLineLastChar(state, targetPos)
+      }
       if (targetPos !== null) {
         view.dispatch(moveCursor(state, targetPos))
       }
@@ -1615,7 +1623,10 @@ export function handleKeyDown(
       return true
     }
     case 'G': {
-      const targetPos = motionDocEnd(state)
+      // Vim: `nG` goes to line n; `G` with no count goes to last line.
+      const targetPos = vimState.count !== null
+        ? motionGotoLine(state, vimState.count)
+        : motionDocEnd(state)
       view.dispatch(moveCursor(state, targetPos))
       clearPendingState(vimState)
       return true
