@@ -209,6 +209,19 @@ export function motionDocStart(state: EditorState): number {
 }
 
 /**
+ * Clamp a cursor position into normal/visual-mode space: the cursor sits ON
+ * a character, never past the last character of a line. PM-end positions
+ * (past last char) are pulled back by one so the block cursor decorates the
+ * last char rather than rendering the EOL nbsp widget.
+ */
+export function clampToCharPos(state: EditorState, pos: number): number {
+  const start = lineStartAt(state, pos)
+  const end = lineEndAt(state, pos)
+  if (pos >= end && end > start) return end - 1
+  return pos
+}
+
+/**
  * Position of the last visible character on the line containing `pos`.
  * If the line is empty, returns the line's start (PM-end==start).
  * Used for normal-mode cursor placement so the block cursor sits ON the

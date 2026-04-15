@@ -16,6 +16,7 @@ import {
   motionLineEnd,
   motionLineLastChar,
   motionGotoLine,
+  clampToCharPos,
   motionDocStart,
   motionDocEnd,
   motionWordForward,
@@ -1216,7 +1217,7 @@ export function handleKeyDown(
         }
         const savedGoal =
           key === 'j' || key === 'k' ? vimState.goalColumn : null
-        const targetPos = resolveMotionKey(
+        let targetPos = resolveMotionKey(
           state,
           pos,
           key,
@@ -1224,6 +1225,11 @@ export function handleKeyDown(
           false,
           vimState.goalColumn ?? undefined,
         )
+        // Visual-mode head sits ON the last char (not past it) so the block
+        // cursor renders on the char and not as the nbsp EOL widget.
+        if (targetPos !== null) {
+          targetPos = clampToCharPos(state, targetPos)
+        }
         if (targetPos !== null) {
           const tr = state.tr
           updateVisualSelection(state, tr, vimState, targetPos)
@@ -1606,10 +1612,8 @@ export function handleKeyDown(
       // Vim cursor in normal mode sits ON the last character, not past it.
       // motionLineEnd returns PM-end (past last char) which is correct for
       // operators (d$, c$, y$) but wrong for cursor placement.
-      if (key === '$' && targetPos !== null) {
-        targetPos = motionLineLastChar(state, targetPos)
-      }
       if (targetPos !== null) {
+        targetPos = clampToCharPos(state, targetPos)
         view.dispatch(moveCursor(state, targetPos))
       }
       clearPendingState(vimState)
